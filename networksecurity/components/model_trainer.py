@@ -3,6 +3,8 @@ import sys
 import numpy as np
 import pandas as pd
 import mlflow
+import dagshub
+dagshub.init(repo_owner='teja0006', repo_name='network-security', mlflow=True)
 
 from networksecurity.exception.exception import NetworkSecurityException
 from networksecurity.logging.logger import logging
@@ -108,6 +110,8 @@ class ModelTrainer:
         Network_Model = NetworkModel(preprocessor,best_model)
 
         save_object(self.model_trainer_config.trained_model_file_path,Network_Model)
+
+        save_object('final_model/model.pkl',best_model)
 
         # Model Trainer Artifact
         model_trainer_artifact = ModelTrainerArtifact(trained_model_file_path=self.model_trainer_config.trained_model_file_path,
