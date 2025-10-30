@@ -88,9 +88,9 @@ The pipeline object is serialized into `final_model/preprocessor.pkl`.
 
 Trains a classification model (e.g., RandomForest, XGBoost, or Logistic Regression). The trained model is serialized as `final_model/model.pkl` for prediction use.
 
-## 5️⃣ Prediction & App Interface
+The ```app.py``` file provides an interface for predicting whether a given URL is phishing or legitimate.
 
-The `app.py` file provides an interface (possibly Flask/Streamlit) for predicting whether a given URL is **phishing** or **legitimate**.
+It supports batch prediction, allowing users to upload an input CSV file. The system processes the file through the trained model and saves the prediction results as an output CSV file, making it easy to analyze or integrate with downstream applications.
 
 ---
 
@@ -137,7 +137,7 @@ This will trigger the end-to-end data ingestion, validation, transformation, and
 python app.py
 ```
 
-This launches the web interface (if implemented in Flask/Streamlit) to test URLs for phishing detection.
+This launches the web interface to test URLs for phishing detection.
 
 ---
 
