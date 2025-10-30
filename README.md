@@ -141,14 +141,6 @@ This launches the web interface (if implemented in Flask/Streamlit) to test URLs
 
 ---
 
-# Deployment
-
-The project is structured to support deployment on **cloud platforms** like AWS, Azure, or Heroku. CI/CD integration is set up using **GitHub Actions** (`.github/workflows/main.yml`).
-
-You can also containerize the app using **Docker** by creating a `Dockerfile` and deploying it to services like **AWS ECS**, **Google Cloud Run**, or **Heroku**.
-
----
-
 # Tech Stack
 
 | Category   | Technology                                            |
@@ -174,7 +166,7 @@ You can also containerize the app using **Docker** by creating a `Dockerfile` an
 
 ---
 
-# 📊 Dataset
+# Dataset
 
 The dataset used for this project is stored at:
 
