@@ -1,0 +1,13 @@
+pandas
+numpy
+matplotlib
+seaborn
+tldextract
+aiohttp
+scikit-learn
+mlflow
+docker
+shap
+xgboost
+uvicorn[standard]
+pymongo
