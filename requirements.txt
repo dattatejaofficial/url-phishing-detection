@@ -11,3 +11,4 @@ shap
 xgboost
 uvicorn[standard]
 pymongo
+ipykernel
