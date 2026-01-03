@@ -24,3 +24,15 @@ class DataPreparationConfig:
         self.original_url_column_name : str = training_pipeline.ORIGINAL_URL_COLUMN_NAME
         self.processed_url_column_name : str = training_pipeline.PROCESSED_URL_COLUMN_NAME
         self.target_column_name : str = training_pipeline.TARGET_COLUMN_NAME
+
+class FeatureExtractionConfig:
+    def __init__(self, training_pipline_config : TrainingPipelineConfig):
+        self.feature_extraction_dir : str = os.path.join(
+            training_pipline_config.artifact_dir,
+            training_pipeline.FEATURE_EXTRACTION_DIR_NAME
+        )
+        self.features_data_path : str = os.path.join(
+            self.feature_extraction_dir,
+            training_pipeline.FEATURE_EXTRACTION_FEATURES_DIR_NAME,
+            training_pipeline.FEATURES_DATA_PATH
+        )

@@ -11,3 +11,8 @@ PROCESSED_DATA_PATH = 'processed_data.csv'
 ORIGINAL_URL_COLUMN_NAME = 'url'
 PROCESSED_URL_COLUMN_NAME = 'processed_url'
 TARGET_COLUMN_NAME = 'label'
+
+# Feature Extraction
+FEATURE_EXTRACTION_DIR_NAME = 'feature_extraction'
+FEATURE_EXTRACTION_FEATURES_DIR_NAME = 'features'
+FEATURES_DATA_PATH = 'features_data.csv'
