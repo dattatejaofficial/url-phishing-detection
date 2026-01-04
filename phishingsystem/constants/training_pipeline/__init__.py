@@ -39,3 +39,9 @@ TRAIN_DATA_PATH = 'train_arr.npy'
 DATA_TRANSFORMATION_TEST_DIR_NAME = 'test'
 TEST_DATA_PATH = 'test_arr.npy'
 TEST_SPLIT_RATIO = 0.2
+
+# Model Trainer
+MODEL_TRAINER_DIR_NAME = 'model_training'
+MODEL_TRAINER_PROB_DIR_NAME = 'probs'
+PROBABILITY_DATA_PATH = 'prob_arr.npy'
+REGISTERED_MODEL_NAME = 'phishingDetectionModel'

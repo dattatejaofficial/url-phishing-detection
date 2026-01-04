@@ -8,7 +8,8 @@ from phishingsystem.entity.config_entity import (
     DataValidationConfig,
     DataPersistanceConfig,
     DataEnvelopConfig,
-    DataTransformationConfig
+    DataTransformationConfig,
+    ModelTrainerConfig
 )
 
 from phishingsystem.entity.artifact_entity import (
@@ -17,7 +18,8 @@ from phishingsystem.entity.artifact_entity import (
     DataValidationArtifact,
     DataPersistanceArtifact,
     DataEnvelopArtifact,
-    DataTransformationArtifact
+    DataTransformationArtifact,
+    ModelTrainerArtifact
 )
 
 from phishingsystem.components.data_preparation import DataPreparation
@@ -25,6 +27,7 @@ from phishingsystem.components.feature_extraction import FeatureExtraction
 from phishingsystem.components.data_validation import DataValidation
 from phishingsystem.components.data_persistance import DataPersistance
 from phishingsystem.components.data_transformation import DataTransformation
+from phishingsystem.components.model_training import ModelTrainer
 
 class TrainingPipeline:
     def __init__(self):
@@ -72,13 +75,23 @@ class TrainingPipeline:
         except Exception as e:
             raise PhishingSystemException(e,sys)
     
-    def start_data_transformation(self, data_persistance_artifact) -> DataTransformationArtifact:
+    def start_data_transformation(self, data_persistance_artifact : DataPersistanceArtifact) -> DataTransformationArtifact:
         try:
             data_transformation_config = DataTransformationConfig(training_pipeline_config = self.training_pipeline_config)
             data_envelop_artifact = DataEnvelopArtifact(data_validation_artifact = None, data_persistance_artifact = data_persistance_artifact)
             data_transformation = DataTransformation(data_envelop_artifact = data_envelop_artifact, data_transformation_config = data_transformation_config)
             data_transformation_artifact = data_transformation.initiate_data_transformation()
             return data_transformation_artifact
+
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
+    
+    def start_model_training(self, data_transformation_artifact : DataTransformationArtifact) -> ModelTrainerArtifact:
+        try:
+            model_trainer_config = ModelTrainerConfig(training_pipeline_config = self.training_pipeline_config)
+            model_training = ModelTrainer(data_transformation_artifact = data_transformation_artifact, model_trainer_config = model_trainer_config)
+            model_training_artifact = model_training.initiate_model_trainer()
+            return model_training_artifact
 
         except Exception as e:
             raise PhishingSystemException(e,sys)
@@ -90,6 +103,7 @@ class TrainingPipeline:
             data_validation_artifact = self.start_data_validation(feature_extraction_artifact)
             data_persistance_artifact = self.start_data_persistance(data_validation_artifact)
             data_transformation_artifact = self.start_data_transformation(data_persistance_artifact)
+            model_trainer_artifact = self.start_model_training(data_transformation_artifact)
 
         except Exception as e:
             raise PhishingSystemException(e,sys)

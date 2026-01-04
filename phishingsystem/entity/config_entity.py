@@ -9,6 +9,7 @@ class TrainingPipelineConfig:
         self.pipeline_name : str = training_pipeline.PIPELINE_NAME
         self.artifact_name : str = training_pipeline.ARTIFACT_NAME
         self.artifact_dir : str = os.path.join(self.artifact_name,timestamp)
+        self.timestamp = timestamp
 
 class DataPreparationConfig:
     def __init__(self, training_pipeline_config : TrainingPipelineConfig):
@@ -93,3 +94,17 @@ class DataTransformationConfig:
             training_pipeline.TEST_DATA_PATH
         )
         self.test_split_ratio : float = training_pipeline.TEST_SPLIT_RATIO
+
+class ModelTrainerConfig:
+    def __init__(self, training_pipeline_config : TrainingPipelineConfig):
+        self.model_trainer_dir_name : str = os.path.join(
+            training_pipeline_config.artifact_dir,
+            training_pipeline.MODEL_TRAINER_DIR_NAME
+        )
+        self.data_prob_path : str = os.path.join(
+            self.model_trainer_dir_name,
+            training_pipeline.MODEL_TRAINER_PROB_DIR_NAME,
+            training_pipeline.PROBABILITY_DATA_PATH
+        )
+        self.artifact_name : str = training_pipeline_config.timestamp + '__' + training_pipeline_config.artifact_name
+        self.registered_model_name : str = training_pipeline.REGISTERED_MODEL_NAME

@@ -30,3 +30,11 @@ class DataEnvelopArtifact:
 class DataTransformationArtifact:
     train_data_path : str
     test_data_path : str
+
+@dataclass
+class ModelTrainerArtifact:
+    model_uri : str
+    registered_model_name : str
+    model_version : str
+    model_tracking_uri : str
+    test_data_probs_path : str
