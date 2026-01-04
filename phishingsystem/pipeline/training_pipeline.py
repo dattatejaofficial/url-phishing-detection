@@ -9,7 +9,8 @@ from phishingsystem.entity.config_entity import (
     DataPersistanceConfig,
     DataEnvelopConfig,
     DataTransformationConfig,
-    ModelTrainerConfig
+    ModelTrainerConfig,
+    ModelEvaluationConfig
 )
 
 from phishingsystem.entity.artifact_entity import (
@@ -19,7 +20,8 @@ from phishingsystem.entity.artifact_entity import (
     DataPersistanceArtifact,
     DataEnvelopArtifact,
     DataTransformationArtifact,
-    ModelTrainerArtifact
+    ModelTrainerArtifact,
+    ModelEvaluationArtifact
 )
 
 from phishingsystem.components.data_preparation import DataPreparation
@@ -28,6 +30,7 @@ from phishingsystem.components.data_validation import DataValidation
 from phishingsystem.components.data_persistance import DataPersistance
 from phishingsystem.components.data_transformation import DataTransformation
 from phishingsystem.components.model_training import ModelTrainer
+from phishingsystem.components.model_evaluation import ModelEvaluation
 
 class TrainingPipeline:
     def __init__(self):
@@ -95,6 +98,16 @@ class TrainingPipeline:
 
         except Exception as e:
             raise PhishingSystemException(e,sys)
+    
+    def start_model_evaluation(self, model_trainer_artifact : ModelTrainerArtifact) -> ModelEvaluationArtifact:
+        try:
+            model_evaluation_config = ModelEvaluationConfig(training_pipeline_config = self.training_pipeline_config)
+            model_evaluation = ModelEvaluation(model_trainer_artifact = model_trainer_artifact, model_evaluation_config = model_evaluation_config)
+            model_evaluation_artifact = model_evaluation.initiate_model_evaluation()
+            return model_evaluation_artifact
+
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
         
     def run_pipeline(self) -> None:
         try:
@@ -104,6 +117,7 @@ class TrainingPipeline:
             data_persistance_artifact = self.start_data_persistance(data_validation_artifact)
             data_transformation_artifact = self.start_data_transformation(data_persistance_artifact)
             model_trainer_artifact = self.start_model_training(data_transformation_artifact)
+            model_evaluation_artifact = self.start_model_evaluation(model_trainer_artifact)
 
         except Exception as e:
             raise PhishingSystemException(e,sys)

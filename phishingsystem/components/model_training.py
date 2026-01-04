@@ -151,7 +151,8 @@ class ModelTrainer:
                 registered_model_name = reg_model_name,
                 model_version = model_version,
                 model_tracking_uri = tracking_uri,
-                test_data_probs_path = test_prob_arr_path
+                test_data_probs_path = test_prob_arr_path,
+                test_data_path = self.data_transformation_artifact.test_data_path
             )
             logging.info('Completed Model Training')
             return model_trainer_artifact

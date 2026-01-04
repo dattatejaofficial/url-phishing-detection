@@ -45,3 +45,10 @@ MODEL_TRAINER_DIR_NAME = 'model_training'
 MODEL_TRAINER_PROB_DIR_NAME = 'probs'
 PROBABILITY_DATA_PATH = 'prob_arr.npy'
 REGISTERED_MODEL_NAME = 'phishingDetectionModel'
+
+# Model Evaluation
+MODEL_EVALUATION_DIR_NAME = 'model_evaluation'
+MODEL_EVALUATION_REPORT_DIR_NAME = 'eval_report'
+MODEL_EVALUATION_REPORT_PATH = 'report.json'
+MIN_THRESHOLD = 0.45
+MIN_RECALL = 0.9725
