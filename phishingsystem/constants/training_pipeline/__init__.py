@@ -16,3 +16,18 @@ TARGET_COLUMN_NAME = 'label'
 FEATURE_EXTRACTION_DIR_NAME = 'feature_extraction'
 FEATURE_EXTRACTION_FEATURES_DIR_NAME = 'features'
 FEATURES_DATA_PATH = 'features_data.csv'
+
+# Data Validation
+DATA_VALIDATION_DIR_NAME = 'data_validation'
+DATA_VALIDATION_DATA_DIR_NAME = 'validated_data'
+DATA_VALIDATION_REPORT_DIR_NAME = 'validation_report'
+VALIDATED_DATA_PATH = 'validated_data.csv'
+DATA_SCHEME_PATH = os.path.join('data_schema','schema.yaml')
+DATA_VALIDATION_REPORT = 'report.json'
+
+# Data Persistance
+DATA_PERSISTANCE_DIR_NAME = 'data_persistance'
+DATA_PERSISTANCE_DATA_DIR_NAME = 'imported'
+IMPORTED_DATA_PATH = 'imported_data.csv'
+MONOGDB_DATABASE_NAME = 'URLPhishingSystem'
+MONGODB_COLLECTION_NAME = 'URLStructuralFeatures'

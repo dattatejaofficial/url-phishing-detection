@@ -1,0 +1,82 @@
+columns:
+  has_https:
+    dtype : int64
+    allowed_values : [0,1]
+
+  url_len:
+    dtype : int64
+  
+  domain_len:
+    dtype : int64
+  
+  path_len:
+    dtype : int64
+  
+  query_len:
+    dtype : int64
+  
+  url_depth:
+    dtype : int64
+  
+  subdomain_count:
+    dtype : int64
+  
+  tld_len:
+    dtype : int64
+  
+  sld_len:
+    dtype : int64
+  
+  sld_has_digit:
+    dtype : int64
+    allowed_values : [0,1]
+  
+  sld_has_hyphen:
+    dtype : int64
+    allowed_values : [0,1]
+  
+  dot_count_domain:
+    dtype : int64
+
+  hyphen_count_domain_path:
+    dtype : int64
+  
+  underscore_count_path_query:
+    dtype : int64
+
+  slash_count:
+    dtype : int64
+
+  digit_count:
+    dtype : int64
+
+  alphabet_count:
+    dtype : int64
+
+  spl_char_count:
+    dtype : int64
+
+  url_entropy:
+    dtype : float64
+    
+  domain_entropy:
+    dtype : float64
+
+  sld_entropy:
+    dtype : float64
+
+  path_entropy:
+    dtype : float64
+
+  domain_token_count:
+    dtype : int64
+
+  path_token_count:
+    dtype : int64
+
+  avg_token_length:
+    dtype : float64
+  
+  label:
+    dtype : int64
+    allowed_values : [0,1]

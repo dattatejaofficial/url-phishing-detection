@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from phishingsystem.constants import training_pipeline
+from phishingsystem.entity.artifact_entity import FeatureExtractionArtifact, DataValidationArtifact, DataPersistanceArtifact
 
 class TrainingPipelineConfig:
     def __init__(self, timestamp = datetime.now()):
@@ -36,3 +37,41 @@ class FeatureExtractionConfig:
             training_pipeline.FEATURE_EXTRACTION_FEATURES_DIR_NAME,
             training_pipeline.FEATURES_DATA_PATH
         )
+
+class DataValidationConfig:
+    def __init__(self, training_pipeline_config : TrainingPipelineConfig):
+        self.data_validation_dir : str = os.path.join(
+            training_pipeline_config.artifact_dir,
+            training_pipeline.DATA_VALIDATION_DIR_NAME
+        )
+        self.validated_data_path : str = os.path.join(
+            self.data_validation_dir,
+            training_pipeline.DATA_VALIDATION_DATA_DIR_NAME,
+            training_pipeline.VALIDATED_DATA_PATH
+        )
+        self.validation_report_path : str = os.path.join(
+            self.data_validation_dir,
+            training_pipeline.DATA_VALIDATION_REPORT_DIR_NAME,
+            training_pipeline.DATA_VALIDATION_REPORT
+        )
+        self.data_scheme_path : str = training_pipeline.DATA_SCHEME_PATH
+
+class DataPersistanceConfig:
+    def __init__(self, training_pipeline_config : TrainingPipelineConfig):
+        self.data_persistance_dir : str = os.path.join(
+            training_pipeline_config.artifact_dir,
+            training_pipeline.DATA_PERSISTANCE_DIR_NAME
+        )
+        self.imported_data_path : str = os.path.join(
+            self.data_persistance_dir,
+            training_pipeline.DATA_PERSISTANCE_DATA_DIR_NAME,
+            training_pipeline.IMPORTED_DATA_PATH
+        )
+        self.database_name = training_pipeline.MONOGDB_DATABASE_NAME
+        self.collection_name = training_pipeline.MONGODB_COLLECTION_NAME
+
+class DataEnvelopConfig:
+    def __init__(self, feature_extraction_artifact : FeatureExtractionArtifact, data_persistance_artifact : DataPersistanceArtifact, data_validation_artifact : DataValidationArtifact):
+        self.feature_extraction_artifact = feature_extraction_artifact
+        self.data_persistance_artifact = data_persistance_artifact
+        self.data_validation_artifact = data_validation_artifact
