@@ -25,3 +25,8 @@ class DataPersistanceArtifact:
 class DataEnvelopArtifact:
     data_validation_artifact : DataValidationArtifact
     data_persistance_artifact : DataPersistanceArtifact
+
+@dataclass
+class DataTransformationArtifact:
+    train_data_path : str
+    test_data_path : str

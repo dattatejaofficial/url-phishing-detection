@@ -75,3 +75,21 @@ class DataEnvelopConfig:
         self.feature_extraction_artifact = feature_extraction_artifact
         self.data_persistance_artifact = data_persistance_artifact
         self.data_validation_artifact = data_validation_artifact
+
+class DataTransformationConfig:
+    def __init__(self, training_pipeline_config : TrainingPipelineConfig):
+        self.data_transformation_dir : str = os.path.join(
+            training_pipeline_config.artifact_dir,
+            training_pipeline.DATA_TRANSFORMATION_DIR_NAME
+        )
+        self.train_data_path : str = os.path.join(
+            self.data_transformation_dir,
+            training_pipeline.DATA_TRANSFORMATION_TRAIN_DIR_NAME,
+            training_pipeline.TRAIN_DATA_PATH
+        )
+        self.test_data_path : str = os.path.join(
+            self.data_transformation_dir,
+            training_pipeline.DATA_TRANSFORMATION_TEST_DIR_NAME,
+            training_pipeline.TEST_DATA_PATH
+        )
+        self.test_split_ratio : float = training_pipeline.TEST_SPLIT_RATIO

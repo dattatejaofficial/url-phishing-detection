@@ -31,3 +31,11 @@ DATA_PERSISTANCE_DATA_DIR_NAME = 'imported'
 IMPORTED_DATA_PATH = 'imported_data.csv'
 MONOGDB_DATABASE_NAME = 'URLPhishingSystem'
 MONGODB_COLLECTION_NAME = 'URLStructuralFeatures'
+
+# Data Transformation
+DATA_TRANSFORMATION_DIR_NAME = 'data_transformation'
+DATA_TRANSFORMATION_TRAIN_DIR_NAME = 'train'
+TRAIN_DATA_PATH = 'train_arr.npy'
+DATA_TRANSFORMATION_TEST_DIR_NAME = 'test'
+TEST_DATA_PATH = 'test_arr.npy'
+TEST_SPLIT_RATIO = 0.2
