@@ -117,7 +117,7 @@ class ModelTrainer:
 
                 model_info = mlflow.sklearn.log_model(
                     sk_model=final_model,
-                    artifact_path=self.model_trainer_config.artifact_name,
+                    name=self.model_trainer_config.artifact_name,
                     registered_model_name=self.model_trainer_config.registered_model_name,
                     signature=signature
                 )

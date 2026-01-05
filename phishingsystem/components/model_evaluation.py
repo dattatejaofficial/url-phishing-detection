@@ -73,6 +73,7 @@ class ModelEvaluation:
                 registered_model_name = self.model_trainer_artifact.registered_model_name,
                 model_version = self.model_trainer_artifact.model_version,
                 model_tracking_uri = self.model_trainer_artifact.model_tracking_uri,
+                evaluation_report_path = report_path,
                 threshold = best_metrics['threshold']
             )
             logging.info('Completed Model Evaluation')

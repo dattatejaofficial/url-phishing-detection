@@ -1,2 +1,6 @@
 .env
 /venv
+mlflow.db
+/Artifacts
+/logs
+/mlruns

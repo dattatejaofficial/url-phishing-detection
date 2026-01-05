@@ -46,4 +46,13 @@ class ModelEvaluationArtifact:
     registered_model_name : str
     model_version : str
     model_tracking_uri : str
+    evaluation_report_path : str
     threshold : float
+
+@dataclass
+class ModelFinalizerArtifact:
+    model_name : str
+    model_version : str
+    stage : str
+    threshold : float
+    run_id : str

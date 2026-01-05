@@ -21,7 +21,8 @@ from phishingsystem.entity.artifact_entity import (
     DataEnvelopArtifact,
     DataTransformationArtifact,
     ModelTrainerArtifact,
-    ModelEvaluationArtifact
+    ModelEvaluationArtifact,
+    ModelFinalizerArtifact
 )
 
 from phishingsystem.components.data_preparation import DataPreparation
@@ -31,6 +32,7 @@ from phishingsystem.components.data_persistance import DataPersistance
 from phishingsystem.components.data_transformation import DataTransformation
 from phishingsystem.components.model_training import ModelTrainer
 from phishingsystem.components.model_evaluation import ModelEvaluation
+from phishingsystem.components.model_finalizer import ModelFinalizer
 
 class TrainingPipeline:
     def __init__(self):
@@ -108,6 +110,15 @@ class TrainingPipeline:
 
         except Exception as e:
             raise PhishingSystemException(e,sys)
+    
+    def start_model_finalization(self, model_evaluation_artifact : ModelEvaluationArtifact) -> ModelFinalizerArtifact:
+        try:
+            model_finalizer = ModelFinalizer(model_evaluation_artifact)
+            model_finalizer_artifact = model_finalizer.initiate_model_finalization()
+            return model_finalizer_artifact
+
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
         
     def run_pipeline(self) -> None:
         try:
@@ -118,6 +129,7 @@ class TrainingPipeline:
             data_transformation_artifact = self.start_data_transformation(data_persistance_artifact)
             model_trainer_artifact = self.start_model_training(data_transformation_artifact)
             model_evaluation_artifact = self.start_model_evaluation(model_trainer_artifact)
+            model_finalizer_artifact = self.start_model_finalization(model_evaluation_artifact)
 
         except Exception as e:
             raise PhishingSystemException(e,sys)
