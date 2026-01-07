@@ -56,3 +56,4 @@ class ModelFinalizerArtifact:
     stage : str
     threshold : float
     run_id : str
+    report_path : str

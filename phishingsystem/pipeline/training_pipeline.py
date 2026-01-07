@@ -10,7 +10,8 @@ from phishingsystem.entity.config_entity import (
     DataEnvelopConfig,
     DataTransformationConfig,
     ModelTrainerConfig,
-    ModelEvaluationConfig
+    ModelEvaluationConfig,
+    ModelFinalizerConfig
 )
 
 from phishingsystem.entity.artifact_entity import (
@@ -113,7 +114,8 @@ class TrainingPipeline:
     
     def start_model_finalization(self, model_evaluation_artifact : ModelEvaluationArtifact) -> ModelFinalizerArtifact:
         try:
-            model_finalizer = ModelFinalizer(model_evaluation_artifact)
+            model_finalizer_config = ModelFinalizerConfig(training_pipeline_config = self.training_pipeline_config)
+            model_finalizer = ModelFinalizer(model_evaluation_artifact = model_evaluation_artifact, model_finalizer_config = model_finalizer_config)
             model_finalizer_artifact = model_finalizer.initiate_model_finalization()
             return model_finalizer_artifact
 

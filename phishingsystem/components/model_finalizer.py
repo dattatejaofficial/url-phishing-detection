@@ -1,17 +1,46 @@
+import os
+import tempfile
 import sys
 
 from phishingsystem.logging.logger import logging
 from phishingsystem.exception.exception import PhishingSystemException
 
+from phishingsystem.entity.config_entity import ModelFinalizerConfig
 from phishingsystem.entity.artifact_entity import ModelEvaluationArtifact, ModelFinalizerArtifact
 
 import mlflow
 from mlflow.client import MlflowClient
+from mlflow.pyfunc.model import PythonModel
+from mlflow.artifacts import download_artifacts
+from joblib import load
+import pandas as pd
+import numpy as np
 import json
 
+class ModelWrapper(PythonModel):
+    def __init__(self):
+        self.model = None
+        self.threshold = None
+    
+    def load_context(self, context):
+        self.model = load(context.artifacts['model_path'])
+
+        with open(context.artifacts['threshold_path'],'r') as file:
+            self.threshold = json.load(file)['threshold']
+    
+    def predict(self, context, model_input : pd.DataFrame) -> dict[str,np.ndarray]:
+        proba = self.model.predict_proba(model_input)[:,1]
+        preds = (proba >= self.threshold).astype(int)
+
+        return {
+            'probability' : proba,
+            'prediction' : preds
+        }
+
 class ModelFinalizer:
-    def __init__(self, model_evaluation_artifact : ModelEvaluationArtifact):
+    def __init__(self, model_evaluation_artifact : ModelEvaluationArtifact, model_finalizer_config : ModelFinalizerConfig):
         self.model_evaluation_artifact = model_evaluation_artifact
+        self.model_finalizer_config = model_finalizer_config
         self.client = MlflowClient(tracking_uri = self.model_evaluation_artifact.model_tracking_uri)
     
     def _get_production_model(self, model_name : str):
@@ -30,7 +59,7 @@ class ModelFinalizer:
         return metrics
     
     def _is_new_model_better(self, new_metrics : dict, prod_metrics : dict, recall_drop : float = 0.02) -> bool:
-        if new_metrics['recall'] < prod_metrics['recall'] - recall_drop:
+        if new_metrics.get('recall',0.0) < prod_metrics.get('recall',0.0) - recall_drop:
             return False
         return True
     
@@ -40,8 +69,7 @@ class ModelFinalizer:
 
             model_name = self.model_evaluation_artifact.registered_model_name
             new_threshold = self.model_evaluation_artifact.threshold
-
-            new_model = mlflow.sklearn.load_model(self.model_evaluation_artifact.model_uri)
+            print(new_threshold)
 
             with open(self.model_evaluation_artifact.evaluation_report_path,'r') as file:
                 new_metrics = json.load(file)
@@ -58,13 +86,32 @@ class ModelFinalizer:
             with mlflow.start_run(run_name='model_finalization') as run:
                 mlflow.log_param('threshold',new_threshold)
 
+                report_path = self.model_finalizer_config.model_finalizer_report_path
+                report_dir = os.path.dirname(report_path)
+                os.makedirs(report_dir,exist_ok=True)
+
+                with open(report_path,'w') as file:
+                    json.dump({'threshold' : new_threshold}, file, indent = 4)
+
                 for k,v in new_metrics.items():
-                    mlflow.log_metric(k,v)
-                
-                mlflow.sklearn.log_model(
-                    sk_model=new_model,
+                    if k != 'threshold':
+                        mlflow.log_metric(k,v)
+
+                local_model_dir = download_artifacts(self.model_evaluation_artifact.model_uri)
+                print("Local Model Directory: ", local_model_dir)
+
+                model_file_path = os.path.join(local_model_dir,'model.pkl')
+                print("Model file path: ", model_file_path)
+
+                mlflow.pyfunc.log_model(
                     name='final_model',
-                    registered_model_name=model_name
+                    python_model=ModelWrapper(),
+                    artifacts={
+                        'model_path' : model_file_path,
+                        'threshold_path' : report_path
+                        },
+                    registered_model_name=model_name,
+                    model_config={'threshold' : new_threshold}
                 )
                 new_run_id = run.info.run_id
             
@@ -103,7 +150,8 @@ class ModelFinalizer:
                 model_version=new_version,
                 stage=final_stage,
                 threshold=new_threshold,
-                run_id=new_run_id
+                run_id=new_run_id,
+                report_path = report_path
             )
             return model_finalizer_artifact
 
