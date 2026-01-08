@@ -13,7 +13,7 @@ import asyncio
 
 from phishingsystem.constants import SHORT_DOMAINS
 from phishingsystem.utils.main_utils import read_csv_file
-from phishingsystem.utils.url_shortening.sqlite_app import init_cache, get_cached_url, cache_url
+from phishingsystem.utils.url_unshortening.sqlite_app import init_cache, get_cached_url, cache_url
 
 from phishingsystem.entity.config_entity import DataPreparationConfig
 from phishingsystem.entity.artifact_entity import DataPreparationArtifact

@@ -132,6 +132,8 @@ class TrainingPipeline:
             model_trainer_artifact = self.start_model_training(data_transformation_artifact)
             model_evaluation_artifact = self.start_model_evaluation(model_trainer_artifact)
             model_finalizer_artifact = self.start_model_finalization(model_evaluation_artifact)
+            
+            return model_finalizer_artifact
 
         except Exception as e:
             raise PhishingSystemException(e,sys)
@@ -139,4 +141,3 @@ class TrainingPipeline:
 if __name__ == '__main__':
     pipeline = TrainingPipeline()
     pipeline.run_pipeline()
-    print('Completed Pipeline')
