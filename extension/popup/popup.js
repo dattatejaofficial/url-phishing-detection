@@ -4,15 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusIndicator = document.getElementById("statusIndicator");
     const versionText = document.getElementById("versionText");
 
-    /* =========================
-       Load version dynamically
-    ========================= */
     const manifest = chrome.runtime.getManifest();
     versionText.innerText = `Version ${manifest.version}`;
 
-    /* =========================
-       Load detection state
-    ========================= */
     chrome.storage.local.get(
         { detectionEnabled: true },
         (data) => {
@@ -21,22 +15,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     );
 
-    /* =========================
-       Toggle detection
-    ========================= */
     toggle.addEventListener("change", () => {
         const enabled = toggle.checked;
-
-        chrome.storage.local.set({
-            detectionEnabled: enabled
-        });
-
+        chrome.storage.local.set({ detectionEnabled: enabled });
         updateUI(enabled);
     });
 
-    /* =========================
-       UI helper
-    ========================= */
     function updateUI(enabled) {
         if (enabled) {
             toggleText.innerText = "Detection Enabled";

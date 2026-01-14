@@ -1,5 +1,3 @@
-console.log("BACKGROUND VERSION 9.4 — SEARCH ENGINE FIX");
-
 /* =====================================================
    Helper: Identify search engine pages ONLY
 ===================================================== */

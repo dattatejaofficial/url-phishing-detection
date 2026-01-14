@@ -10,18 +10,29 @@ document.addEventListener("DOMContentLoaded", () => {
             urlDiv.innerText = data.lastCheckedURL || "Unknown URL";
 
             if (typeof data.confidence === "number") {
-                const percent = Math.round(data.confidence * 100);
-                confidenceDiv.innerText = `Risk Confidence: ${percent}%`;
+                confidenceDiv.innerText =
+                    `Risk Confidence: ${Math.round(data.confidence * 100)}%`;
             } else {
                 confidenceDiv.innerText = "Risk Confidence: Unknown";
             }
         }
     );
 
+    /* ✅ GO BACK (SPA SAFE) */
     goBackBtn.addEventListener("click", () => {
-        window.history.back();
+        chrome.storage.local.get(["fallbackURL"], (data) => {
+            const target = data.fallbackURL || "chrome://newtab/";
+
+            chrome.tabs.query(
+                { active: true, currentWindow: true },
+                (tabs) => {
+                    chrome.tabs.update(tabs[0].id, { url: target });
+                }
+            );
+        });
     });
 
+    /* 🔓 PROCEED ANYWAY (ONE-TIME BYPASS) */
     proceedBtn.addEventListener("click", () => {
         chrome.storage.local.get(["lastCheckedURL"], (data) => {
             if (!data.lastCheckedURL) return;
