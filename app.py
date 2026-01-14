@@ -7,8 +7,8 @@ import mlflow
 from mlflow import MlflowClient
 import pandas as pd
 
-from phishingsystem.utils.url_cleaner import URLCleaner
-from phishingsystem.components.feature_extraction import URLFeaturesExtraction
+from phishingsystem.utils.url_preparation.url_cleaner import URLCleaner
+from phishingsystem.utils.url_preparation.url_feature_extraction import URLFeaturesExtraction
 from phishingsystem.constants.training_pipeline import REGISTERED_MODEL_NAME
 
 app = FastAPI()
@@ -30,17 +30,14 @@ async def predict_route(request : PredictionRequest):
             extractor = URLFeaturesExtraction(cleaned_url)
             features = extractor.extract_features()
             df = pd.DataFrame([features])
-            model.predict(df)
 
-            return cleaned_url, model.predict(df)
+            return model.predict(df)
         
-        cleaned_url, result = await run_in_threadpool(blocking_logic)
+        result = await run_in_threadpool(blocking_logic)
 
         return {
-            'url' : request.url,
-            'cleaned_url' : cleaned_url,
-            'probablity' : result['probability'].tolist(),
-            'prediction' : result['prediction'].tolist()
+            'probability' : float(result['probability'][0]),
+            'prediction' : bool(result['prediction'])
         }
     
     except Exception as e:
