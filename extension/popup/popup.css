@@ -1,0 +1,114 @@
+body {
+    font-family: Arial, sans-serif;
+    width: 260px;
+    padding: 12px;
+    background: #eaeaea;
+}
+
+h2 {
+    font-size: 16px;
+    margin: 0 0 6px 0;
+}
+
+/* =========================
+   Version
+========================= */
+.version {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+/* =========================
+   Toggle Area
+========================= */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* =========================
+   Switch (unchanged)
+========================= */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    background-color: #ccc;
+    border-radius: 24px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transition: 0.3s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+input:checked + .slider {
+    background-color: #1a73e8;
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+/* =========================
+   Toggle Text
+========================= */
+.toggle-text {
+    font-size: 11px;
+    color: #555;
+    font-weight: bolder;
+}
+
+/* =========================
+   Status Indicator
+========================= */
+.indicator {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.indicator.on {
+    color: #137333; /* green */
+}
+
+.indicator.off {
+    color: #b00020; /* red */
+}
+
+/* =========================
+   Footer
+========================= */
+.footer {
+    padding-top: 14px;
+    font-size: 13px;
+    color: black;
+    line-height: 20px;
+}

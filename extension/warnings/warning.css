@@ -1,0 +1,105 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #fff1f1; /* balanced light red variant */
+    color: #4a1c1c;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* =========================
+   Main Container
+========================= */
+.container {
+    max-width: 520px;
+    background-color: #ffeaea; /* soft blush */
+    border-radius: 14px;
+    padding: 26px;
+    text-align: center;
+    border: 1px solid #f5b5b5;
+    box-shadow: 0 8px 22px rgba(220, 38, 38, 0.2);
+}
+
+/* =========================
+   Heading
+========================= */
+h1 {
+    color: #c62828;
+    margin-bottom: 14px;
+    font-weight: bold;
+}
+
+/* =========================
+   Warning Text
+========================= */
+.warning-text {
+    font-size: 15px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+    color: #7a2c2c;
+}
+
+/* =========================
+   Confidence Indicator
+========================= */
+.confidence {
+    margin: 14px 0 20px;
+    font-size: 15px;
+    font-weight: bold;
+    color: #ef6c00;
+}
+
+/* =========================
+   URL Box
+========================= */
+.url {
+    word-break: break-all;
+    background: #fffafa;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 12px 0;
+    font-size: 14px;
+    border: 1px solid #f1bdbd;
+    color: #3a0f0f;
+}
+
+/* =========================
+   Buttons
+========================= */
+.buttons {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+}
+
+button {
+    padding: 11px 18px;
+    font-size: 14px;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* =========================
+   Go Back (Safe)
+========================= */
+.back-btn {
+    background-color: #43a047;
+    color: #ffffff;
+}
+
+/* =========================
+   Proceed Anyway (Danger)
+========================= */
+.proceed-btn {
+    background-color: #e53935;
+    color: #ffffff;
+}

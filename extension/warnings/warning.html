@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Phishing Warning</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="warning.css" />
+</head>
+
+<body>
+    <div class="container">
+        <h1>⚠ Phishing Detected</h1>
+
+        <p class="warning-text">
+            This website has been identified as a potential phishing site.
+            Visiting it may put your personal information at risk.
+        </p>
+
+        <div class="confidence" id="confidenceScore">
+            Risk Confidence: --
+        </div>
+
+        <div class="url" id="phishingUrl">
+            Loading URL...
+        </div>
+
+        <div class="buttons">
+            <button class="back-btn" id="goBack">
+                Go Back (Recommended)
+            </button>
+            <button class="proceed-btn" id="proceedAnyway">
+                Proceed Anyway
+            </button>
+        </div>
+    </div>
+
+    <script src="warning.js"></script>
+</body>
+</html>
