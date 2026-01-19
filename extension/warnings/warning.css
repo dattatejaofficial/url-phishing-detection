@@ -103,3 +103,25 @@ button:hover {
     background-color: #e53935;
     color: #ffffff;
 }
+
+/* =========================
+   Developer Feedback
+========================= */
+.feedback {
+    margin-top: 18px;
+    text-align: center;
+}
+
+.feedback-btn {
+    background-color: #eeeeee;
+    color: #333333;
+    border: 1px solid #cccccc;
+    padding: 9px 14px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.feedback-btn:hover {
+    background-color: #e0e0e0;
+}
