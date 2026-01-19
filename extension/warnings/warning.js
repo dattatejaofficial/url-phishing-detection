@@ -11,18 +11,22 @@ document.addEventListener("DOMContentLoaded", () => {
         ["lastCheckedURL", "confidence", "fallbackURL", "developerMode"],
         (data) => {
             if (urlDiv) urlDiv.innerText = data.lastCheckedURL || "Unknown URL";
+
             if (confidenceDiv) {
                 confidenceDiv.innerText =
                     typeof data.confidence === "number"
                         ? `Risk Confidence: ${Math.round(data.confidence * 100)}%`
                         : "Risk Confidence: Unknown";
             }
-            if (!data.developerMode && notPhishingBtn) {
-                notPhishingBtn.style.display = "none";
-            }
+
+            // ⭐ CHANGED: do NOT hide button in non-developer mode
+            // Trust should be allowed for all users
         }
     );
 
+    /* =========================
+       GO BACK (SPA-safe)
+    ========================= */
     if (goBackBtn) {
         goBackBtn.addEventListener("click", () => {
             chrome.storage.local.get(["fallbackURL"], (data) => {
@@ -34,33 +38,44 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    /* =========================
+       PROCEED ANYWAY
+    ========================= */
     if (proceedBtn) {
         proceedBtn.addEventListener("click", proceedAnyway);
     }
 
+    /* =========================
+       NOT PHISHING (TRUST SITE)
+    ========================= */
     if (notPhishingBtn) {
         notPhishingBtn.addEventListener("click", async () => {
             chrome.storage.local.get(
-                ["lastCheckedURL", "confidence"],
+                ["lastCheckedURL", "confidence", "developerMode"],
                 async (data) => {
                     if (!data.lastCheckedURL) return;
 
-                    await sendFeedback({
-                        url: data.lastCheckedURL,
-                        model_prediction: "phishing",
-                        user_label: "legitimate",
-                        confidence: data.confidence
-                    });
-
+                    // ⭐ ALWAYS trust locally
                     chrome.runtime.sendMessage({
                         type: "TRUST_DOMAIN_PERMANENT",
                         url: data.lastCheckedURL
                     });
-                    
+
+                    // ⭐ Send feedback ONLY in developer mode
+                    if (data.developerMode) {
+                        await sendFeedback({
+                            url: data.lastCheckedURL,
+                            model_prediction: "phishing",
+                            user_label: "legitimate",
+                            confidence: data.confidence
+                        });
+                    }
+
+                    // ⭐ One-time bypass so page opens immediately
                     chrome.storage.local.set(
                         { bypassURL: data.lastCheckedURL },
                         () => {
-                            alert("Thanks! Feedback recorded.");
+                            alert("Website marked as legitimate.");
                             window.location.href = data.lastCheckedURL;
                         }
                     );
@@ -70,9 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+/* =========================
+   Proceed Anyway helper
+========================= */
 function proceedAnyway() {
     chrome.storage.local.get(["lastCheckedURL"], (data) => {
         if (!data.lastCheckedURL) return;
+
         chrome.storage.local.set(
             { bypassURL: data.lastCheckedURL },
             () => {
@@ -82,6 +101,9 @@ function proceedAnyway() {
     });
 }
 
+/* =========================
+   Feedback helper
+========================= */
 async function sendFeedback(payload) {
     try {
         await fetch(FEEDBACK_API, {

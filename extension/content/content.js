@@ -9,7 +9,7 @@ const FEEDBACK_API = "http://127.0.0.1:8000/feedback";
 chrome.runtime.onMessage.addListener((message) => {
 
     /* =================================================
-       SAFE SITE POPUP (MODEL-BASED) — UNCHANGED
+       SAFE SITE POPUP (MODEL-BASED)
     ================================================= */
     if (message.type === "SAFE_SITE") {
         if (safePopupShown) return;
@@ -27,13 +27,20 @@ chrome.runtime.onMessage.addListener((message) => {
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <strong>✅ Site is Safe</strong>
                 <span id="safe-close-btn"
-                      style="cursor:pointer; font-size:16px; font-weight:bold;">
-                    ×
-                </span>
+                      style="cursor:pointer; font-size:16px; font-weight:bold;">×</span>
             </div>
+
             <div style="margin-top:6px;">
                 Safety Confidence: ${percent}%
             </div>
+
+            <button id="notLegitBtn"
+                style="margin-top:10px;
+                       padding:6px 10px;
+                       font-size:12px;
+                       cursor:pointer;">
+                ❌ This is NOT legitimate
+            </button>
         `;
 
         Object.assign(popup.style, {
@@ -49,42 +56,38 @@ chrome.runtime.onMessage.addListener((message) => {
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             zIndex: "999999",
             border: "1px solid #34d399",
-            minWidth: "220px"
+            minWidth: "240px"
         });
 
         document.body.appendChild(popup);
 
-        /* -------- Developer feedback (existing) -------- */
-        chrome.storage.local.get(
-            ["developerMode", "lastCheckedURL", "confidence"],
-            (data) => {
-                if (!data.developerMode) return;
+        /* ❌ User says site is NOT legitimate */
+        popup.querySelector("#notLegitBtn").onclick = async () => {
+            chrome.storage.local.get(
+                ["developerMode", "lastCheckedURL", "confidence"],
+                async (data) => {
 
-                const reportBtn = document.createElement("button");
-                reportBtn.innerText = "❌ Not a legitimate website";
-                reportBtn.style.marginTop = "8px";
-                reportBtn.style.padding = "6px 10px";
-                reportBtn.style.fontSize = "12px";
-                reportBtn.style.cursor = "pointer";
-
-                reportBtn.onclick = async () => {
-                    await sendFeedback({
-                        url: data.lastCheckedURL,
-                        model_prediction: "legitimate",
-                        user_label: "phishing",
-                        confidence: data.confidence
-                    });
-
-                    alert("Thanks! Feedback recorded.");
-
+                    // 🔁 Always force warning page
                     chrome.runtime.sendMessage({
                         type: "FORCE_WARNING_PAGE"
                     });
-                };
 
-                popup.appendChild(reportBtn);
-            }
-        );
+                    // 📡 Send feedback ONLY in dev mode
+                    if (data.developerMode) {
+                        await fetch(FEEDBACK_API, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                url: data.lastCheckedURL,
+                                model_prediction: "legitimate",
+                                user_label: "phishing",
+                                confidence: data.confidence
+                            })
+                        });
+                    }
+                }
+            );
+        };
 
         const removePopup = () => {
             popup.remove();
@@ -92,7 +95,7 @@ chrome.runtime.onMessage.addListener((message) => {
         };
 
         popup.querySelector("#safe-close-btn").onclick = removePopup;
-        setTimeout(removePopup, 5000);
+        setTimeout(removePopup, 6000);
     }
 
     /* =================================================
@@ -109,9 +112,7 @@ chrome.runtime.onMessage.addListener((message) => {
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <strong>🛡️ Trusted Site</strong>
                 <span id="trusted-close-btn"
-                      style="cursor:pointer; font-size:16px; font-weight:bold;">
-                    ×
-                </span>
+                      style="cursor:pointer; font-size:16px; font-weight:bold;">×</span>
             </div>
 
             <div style="margin-top:6px; font-size:13px;">
@@ -153,12 +154,10 @@ chrome.runtime.onMessage.addListener((message) => {
 
         /* 🔁 Remove trust permanently */
         popup.querySelector("#remove-trust-btn").onclick = () => {
-            chrome.runtime.sendMessage(
-                {
-                    type: "UNTRUST_DOMAIN",
-                    domain: message.domain
-                }
-            );
+            chrome.runtime.sendMessage({
+                type: "UNTRUST_DOMAIN",
+                domain: message.domain
+            });
 
             popup.remove();
             trustedPopupShown = false;
