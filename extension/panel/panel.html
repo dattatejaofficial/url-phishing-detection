@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhishGuard</title>
+  <link rel="stylesheet" href="panel.css" />
+</head>
+<body>
+
+  <div id="panelRoot" class="panel-root">
+
+    <!-- Header -->
+    <div class="header">
+      <h2>PhishGuard</h2>
+      <p class="tagline">Defending you from Deceptive Links</p>
+      <div class="version" id="versionText">Version --</div>
+    </div>
+
+    <!-- Protection Stats -->
+    <div class="stats">
+      <div class="stat-card">
+        <span class="stat-number" id="protectedCount">0</span>
+        <span class="stat-label">Sites Protected</span>
+      </div>
+    </div>
+
+    <!-- Protection Toggle -->
+    <div class="toggle-container">
+      <label class="switch">
+        <input type="checkbox" id="toggleDetection">
+        <span class="slider"></span>
+      </label>
+
+      <span id="toggleText" class="toggle-text">Protection Enabled</span>
+      <span id="statusIndicator" class="indicator on">●</span>
+    </div>
+
+    <!-- Developer Mode -->
+    <div class="dev-toggle">
+      <label
+        title="Intended for testing. When enabled, feedback actions may send URLs to improve phishing detection."
+      >
+        <input type="checkbox" id="developerMode">
+        Developer Mode
+      </label>
+    </div>
+
+    <hr />
+
+    <!-- How it works -->
+    <div class="how-it-works">
+      <h3>How PhishGuard Works</h3>
+      <p>
+        PhishGuard protects you by scanning websites in real time as you browse.
+        It uses machine-learning models trained on known phishing and legitimate
+        URLs to identify suspicious patterns in links. When a risky website is
+        detected, PhishGuard warns you before the page loads. Websites you mark as
+        trusted are skipped to reduce false alerts, and your browsing data remains
+        private at all times.
+      </p>
+    </div>
+
+    <hr />
+
+    <!-- Trusted Websites -->
+    <div class="trusted-header">
+      <h3>Trusted Websites</h3>
+      <button id="clearAllBtn" class="clear-btn">Clear all</button>
+    </div>
+
+    <div class="trusted-controls">
+      <input id="trustedInput" type="text" placeholder="example.com" />
+      <button id="addBtn" class="icon-btn" disabled>➕</button>
+      <button id="removeBtn" class="icon-btn" disabled>➖</button>
+    </div>
+
+    <div id="trustedList" class="trusted-list"></div>
+
+    <!-- Privacy -->
+    <div class="footer">
+      PhishGuard analyzes URLs in real time to protect you from deceptive links.
+      URLs are never stored or shared unless Developer Mode is enabled and you
+      explicitly provide feedback. No browsing history is tracked.
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden">
+    Developer Mode enabled. Feedback actions may send URLs.
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>
