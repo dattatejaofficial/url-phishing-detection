@@ -11,7 +11,7 @@ from phishingsystem.entity.artifact_entity import ModelTrainerArtifact, ModelEva
 from phishingsystem.utils.main_utils import load_numpy_array
 
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, precision_recall_curve
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, precision_recall_curve
 
 class ModelEvaluation:
     def __init__(self, model_trainer_artifact : ModelTrainerArtifact, model_evaluation_config : ModelEvaluationConfig):
@@ -45,8 +45,17 @@ class ModelEvaluation:
                 'f1_score' : float(f1_score(y_true, (y_prob >= best_threshold).astype(int)))
             }
 
-        except Exception as e:
-            raise PhishingSystemException(e,sys)
+        except Exception:
+            fallback_threshold = np.percentile(y_prob,95)
+
+            return {
+                'threshold' : float(fallback_threshold),
+                'accuracy' : float(accuracy_score(y_true, (y_prob >= fallback_threshold).astype(int))),
+                'precision' : float(precision_score(y_true, (y_prob >= fallback_threshold).astype(int))),
+                'recall' : float(recall_score(y_true, (y_prob >= fallback_threshold).astype(int))),
+                'f1_score' : float(f1_score(y_true, (y_prob >= fallback_threshold).astype(int))),
+                'fallback_used' : True
+            }
     
     def initiate_model_evaluation(self):
         try:

@@ -30,7 +30,7 @@ DATA_PERSISTANCE_DIR_NAME = 'data_persistance'
 DATA_PERSISTANCE_DATA_DIR_NAME = 'imported'
 IMPORTED_DATA_PATH = 'imported_data.csv'
 MONOGDB_DATABASE_NAME = 'URLPhishingSystem'
-MONGODB_COLLECTION_NAME = 'URLStructuralFeatures'
+MONGODB_FEATURES_COLLECTION_NAME = 'URLStructuralFeatures'
 
 # Data Transformation
 DATA_TRANSFORMATION_DIR_NAME = 'data_transformation'
@@ -45,6 +45,8 @@ MODEL_TRAINER_DIR_NAME = 'model_training'
 MODEL_TRAINER_PROB_DIR_NAME = 'probs'
 PROBABILITY_DATA_PATH = 'prob_arr.npy'
 REGISTERED_MODEL_NAME = 'phishingDetectionModel'
+IMBALANCE_RATIO_THRESHOLD = 0.2
+MAX_CLASS_WEIGHT = 10.0
 
 # Model Evaluation
 MODEL_EVALUATION_DIR_NAME = 'model_evaluation'
@@ -57,3 +59,6 @@ MIN_RECALL = 0.9700
 MODEL_FINALIZER_DIR_NAME = 'model_finalizer'
 MODEL_FINALIZER_THRESHOLD_DIR_NAME = 'report'
 FINAL_THRESHOLD_PATH = 'threshold.json'
+
+# Feedback
+MONOGODB_URLS_COLLECTION_NAME = 'FeedbackURLs'

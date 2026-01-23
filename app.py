@@ -1,7 +1,15 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Literal
+
+import pymongo
 
 import mlflow
 from mlflow import MlflowClient
@@ -9,9 +17,20 @@ import pandas as pd
 
 from phishingsystem.utils.url_preparation.url_cleaner import URLCleaner
 from phishingsystem.utils.url_preparation.url_feature_extraction import URLFeaturesExtraction
-from phishingsystem.constants.training_pipeline import REGISTERED_MODEL_NAME
+from phishingsystem.constants.training_pipeline import REGISTERED_MODEL_NAME, MONOGDB_DATABASE_NAME, MONOGODB_URLS_COLLECTION_NAME
+
+MONGODB_URI = os.getenv('MONGODB_URI')
+if not MONGODB_URI:
+    raise Exception("MONGODB_URI is not set in environement")
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
 
 model_name = REGISTERED_MODEL_NAME
 client = MlflowClient()
@@ -19,6 +38,12 @@ model = mlflow.pyfunc.load_model(f"models:/{model_name}@production")
 
 class PredictionRequest(BaseModel):
     url : str
+
+class FeedbackRequest(BaseModel):
+    url : str
+    model_prediction : Literal["phishing","legitimate"]
+    user_label : Literal["phishing","legitimate"]
+    confidence : float | None
 
 @app.post('/predict')
 async def predict_route(request : PredictionRequest):
@@ -43,5 +68,28 @@ async def predict_route(request : PredictionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post('/feedback')
+async def feedback_route(request : FeedbackRequest):
+    feedback_doc = {
+        "url" : request.url,
+        "model_prediction" : request.model_prediction,
+        "user_label" : request.user_label,
+        "confidence" : request.confidence,
+    }
+
+    client = pymongo.MongoClient(MONGODB_URI, serverSelectionTimeoutMS=60000)
+    db = client[MONOGDB_DATABASE_NAME]
+    collection = db[MONOGODB_URLS_COLLECTION_NAME]
+
+    collection.update_one(
+        {'url' : request.url},
+        {
+            "$set" : feedback_doc
+        },
+        upsert=True
+    )
+
+    return {'status' : 'feedback stored'}
+
 if __name__ == '__main__':
-    uvicorn.run(app=app,host='127.0.0.1',port=8000)
+    uvicorn.run(app=app,host='0.0.0.0',port=8000)

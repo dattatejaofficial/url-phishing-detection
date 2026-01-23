@@ -10,12 +10,18 @@ from phishingsystem.entity.artifact_entity import DataTransformationArtifact, Mo
 from phishingsystem.utils.main_utils import save_numpy_array, load_numpy_array, evaluate_model
 
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
 from xgboost import XGBClassifier
+
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from sklearn.metrics import recall_score
+
 from hyperopt import hp, tpe, STATUS_OK, Trials, fmin
+
 import mlflow
 from mlflow.models import infer_signature
+
+import shap
+import matplotlib.pyplot as plt
 
 class ModelTrainer:
     def __init__(self, data_transformation_artifact : DataTransformationArtifact, model_trainer_config : ModelTrainerConfig):
@@ -39,7 +45,19 @@ class ModelTrainer:
                 "reg_lambda" : hp.loguniform("reg_lambda",np.log(1),np.log(10))
             }
 
+            # Handling imbalanced classes
+            n_pos = (y_train == 1).sum()
+            n_neg = (y_train == 0).sum()
+
+            scale_pos_weight = 1.0
+
+            if n_neg > n_pos:
+                ratio = n_neg / n_pos
+                if ratio > self.model_trainer_config.imbalance_ratio_threshold:
+                    scale_pos_weight = min(ratio, self.model_trainer_config.max_class_weight)
+
             def objective(params : dict):
+                params['scale_pos_weight'] = scale_pos_weight
                 params['max_depth'] = int(params['max_depth'])
                 params['n_estimators'] = int(params['n_estimators'])
                 params['min_child_weight'] = int(params['min_child_weight'])
@@ -84,6 +102,7 @@ class ModelTrainer:
                     max_evals = 50
                 )
 
+                best_params['scale_pos_weight'] = scale_pos_weight
                 best_params['max_depth'] = int(best_params['max_depth'])
                 best_params['n_estimators'] = int(best_params['n_estimators'])
                 best_params['min_child_weight'] = int(best_params['min_child_weight'])
@@ -112,6 +131,25 @@ class ModelTrainer:
                 
                 for k,v in test_metrics.items():
                     mlflow.log_metric(f'test_{k}',v)
+                
+                np.random.seed(42)
+
+                splitter = StratifiedShuffleSplit(n_splits=1,test_size=500,random_state=42)
+                for _, idx in splitter.split(X_train, y_train):
+                    X_shap = X_train[idx]
+                
+                explainer = shap.TreeExplainer(final_model)
+                shap_values = explainer.shap_values(X_shap)
+                
+                logging.info('Logging SHAP summary plot into MLFlow')
+                plt.figure(figsize=(8,5))
+                
+                shap.plots.bar(shap_values,max_display=30,show=False)
+                plt.title('SHAP Summary of 500 samples',weight='bold')
+                plt.tight_layout()
+                plt.savefig('shap_bar.png',dpi=150,bbox_inches='tight')
+                mlflow.log_artifact('shap_bar.png',artifact_path='shap')
+                plt.close()
                 
                 signature = infer_signature(X_train, final_model.predict(X_train))
 

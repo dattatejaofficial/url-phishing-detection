@@ -69,7 +69,7 @@ class DataPersistanceConfig:
             training_pipeline.IMPORTED_DATA_PATH
         )
         self.database_name = training_pipeline.MONOGDB_DATABASE_NAME
-        self.collection_name = training_pipeline.MONGODB_COLLECTION_NAME
+        self.collection_name = training_pipeline.MONGODB_FEATURES_COLLECTION_NAME
 
 class DataEnvelopConfig:
     def __init__(self, feature_extraction_artifact : FeatureExtractionArtifact, data_persistance_artifact : DataPersistanceArtifact, data_validation_artifact : DataValidationArtifact):
@@ -108,6 +108,8 @@ class ModelTrainerConfig:
         )
         self.artifact_name : str = training_pipeline_config.timestamp + '__' + training_pipeline_config.artifact_name
         self.registered_model_name : str = training_pipeline.REGISTERED_MODEL_NAME
+        self.imbalance_ratio_threshold : float = training_pipeline.IMBALANCE_RATIO_THRESHOLD
+        self.max_class_weight : float = training_pipeline.MAX_CLASS_WEIGHT
 
 class ModelEvaluationConfig:
     def __init__(self, training_pipeline_config : TrainingPipelineConfig):

@@ -32,10 +32,11 @@ class DataPersistance:
         return client, collection
     
     def _compute_hash(self, df : pd.DataFrame) -> pd.Series:
-        feature_cols = df.columns.tolist()
-        feature_cols = sorted(feature_cols)
+        feature_cols = sorted(df.columns)
+        normalized = df[feature_cols].copy().round(6).astype(str)
+        normalized = normalized.drop_duplicates(ignore_index=True)
 
-        return df[feature_cols].astype(str).agg('|'.join,axis=1).map(lambda x: hashlib.sha256(x.encode()).hexdigest())
+        return normalized.agg('|'.join,axis=1).map(lambda x: hashlib.sha256(x.encode()).hexdigest())
     
     def export_data_to_collections(self, df: pd.DataFrame):
         try:

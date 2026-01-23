@@ -1,5 +1,4 @@
 import os
-import tempfile
 import sys
 
 from phishingsystem.logging.logger import logging
