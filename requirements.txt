@@ -13,3 +13,4 @@ uvicorn[standard]
 pymongo
 ipykernel
 hyperopt
+evidently

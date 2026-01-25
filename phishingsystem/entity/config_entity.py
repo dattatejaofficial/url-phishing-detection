@@ -56,6 +56,10 @@ class DataValidationConfig:
             training_pipeline.DATA_VALIDATION_REPORT
         )
         self.data_scheme_path : str = training_pipeline.DATA_SCHEME_PATH
+        self.psi_threshold : float = training_pipeline.PSI_THRESHOLD
+        self.chi_square_threshold : float = training_pipeline.CHI_SQUARE_THRESHOLD
+        self.max_warn_features : int = training_pipeline.MAX_WARN_FEATURES
+        self.max_fail_features : int = training_pipeline.MAX_FAIL_FEATURES
 
 class DataPersistanceConfig:
     def __init__(self, training_pipeline_config : TrainingPipelineConfig):
@@ -69,7 +73,8 @@ class DataPersistanceConfig:
             training_pipeline.IMPORTED_DATA_PATH
         )
         self.database_name = training_pipeline.MONOGDB_DATABASE_NAME
-        self.collection_name = training_pipeline.MONGODB_FEATURES_COLLECTION_NAME
+        self.raw_features_collection_name = training_pipeline.MONGODB_FEATURES_COLLECTION_NAME
+        self.feedback_features_collection_name = training_pipeline.MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME
 
 class DataEnvelopConfig:
     def __init__(self, feature_extraction_artifact : FeatureExtractionArtifact, data_persistance_artifact : DataPersistanceArtifact, data_validation_artifact : DataValidationArtifact):

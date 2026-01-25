@@ -24,6 +24,10 @@ DATA_VALIDATION_REPORT_DIR_NAME = 'validation_report'
 VALIDATED_DATA_PATH = 'validated_data.csv'
 DATA_SCHEME_PATH = os.path.join('data_schema','schema.yaml')
 DATA_VALIDATION_REPORT = 'report.json'
+PSI_THRESHOLD = 0.25
+CHI_SQUARE_THRESHOLD = 0.05
+MAX_WARN_FEATURES = 5
+MAX_FAIL_FEATURES = 10
 
 # Data Persistance
 DATA_PERSISTANCE_DIR_NAME = 'data_persistance'
@@ -61,4 +65,4 @@ MODEL_FINALIZER_THRESHOLD_DIR_NAME = 'report'
 FINAL_THRESHOLD_PATH = 'threshold.json'
 
 # Feedback
-MONOGODB_URLS_COLLECTION_NAME = 'FeedbackURLs'
+MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME = 'FeedbackURLs'

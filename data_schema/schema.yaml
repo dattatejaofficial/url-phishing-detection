@@ -80,3 +80,32 @@ columns:
   label:
     dtype : int64
     allowed_values : [0,1]
+
+numerical_columns:
+  - url_len
+  - domain_len
+  - path_len
+  - query_len
+  - url_depth
+  - subdomain_count
+  - tld_len
+  - sld_len
+  - dot_count_domain
+  - hyphen_count_domain_path
+  - underscore_count_path_query
+  - slash_count
+  - digit_count
+  - alphabet_count
+  - spl_char_count
+  - url_entropy
+  - domain_entropy
+  - sld_entropy
+  - path_entropy
+  - domain_token_count
+  - path_token_count
+  - avg_token_length
+
+categorical_columns:
+  - has_https
+  - sld_has_digit
+  - sld_has_hyphen
