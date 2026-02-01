@@ -13,7 +13,7 @@ import numpy as np
 from xgboost import XGBClassifier
 
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
-from sklearn.metrics import recall_score
+from sklearn.metrics import recall_score, confusion_matrix
 
 from hyperopt import hp, tpe, STATUS_OK, Trials, fmin
 
@@ -72,6 +72,7 @@ class ModelTrainer:
 
                 skf = StratifiedKFold(n_splits=5,shuffle=True,random_state=42)
                 recalls = []
+                fprs = []
 
                 for tr_idx, val_idx in skf.split(X_train, y_train):
                     X_tr, y_tr = X_train[tr_idx], y_train[tr_idx]
@@ -82,14 +83,25 @@ class ModelTrainer:
 
                     preds = model.predict(X_val)
                     recalls.append(recall_score(y_val,preds))
+
+                    tn, fp, _, _ = confusion_matrix(y_val, preds).ravel()
+                    fpr = fp / (fp + tn)
+                    fprs.append(fpr)
                 
                 mean_recall = np.mean(recalls)
+                mean_fpr = np.mean(fprs)
+
+                w_recall = 0.7
+                w_fpr = 0.3
+
+                loss = (w_fpr * mean_fpr) - (w_recall * mean_recall)
 
                 with mlflow.start_run(nested=True):
                     mlflow.log_params(params)
                     mlflow.log_metric('cv_mean_recall',mean_recall)
+                    mlflow.log_metric('cv_mean_fpr', mean_fpr)
                 
-                return {'loss' : -mean_recall, 'status' : STATUS_OK}
+                return {'loss' : loss, 'status' : STATUS_OK}
 
             trials = Trials()
 
@@ -139,7 +151,7 @@ class ModelTrainer:
                     X_shap = X_train[idx]
                 
                 explainer = shap.TreeExplainer(final_model)
-                shap_values = explainer.shap_values(X_shap)
+                shap_values = explainer(X_shap)
                 
                 logging.info('Logging SHAP summary plot into MLFlow')
                 plt.figure(figsize=(8,5))
@@ -147,7 +159,11 @@ class ModelTrainer:
                 shap.plots.bar(shap_values,max_display=30,show=False)
                 plt.title('SHAP Summary of 500 samples',weight='bold')
                 plt.tight_layout()
-                plt.savefig('shap_bar.png',dpi=150,bbox_inches='tight')
+
+                shap_plot_dir = os.path.dirname(self.model_trainer_config.shap_plot_path)
+                os.makedirs(shap_plot_dir, exist_ok=True)
+                
+                plt.savefig(self.model_trainer_config.shap_plot_path, dpi=150,bbox_inches='tight')
                 mlflow.log_artifact('shap_bar.png',artifact_path='shap')
                 plt.close()
                 

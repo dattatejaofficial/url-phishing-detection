@@ -39,7 +39,7 @@ class DataPersistance:
     
     def export_data_to_collections(self, df: pd.DataFrame):
         try:
-            client, collection = self._get_collection()
+            client, collection = self._get_collection(self.data_persistance_config.raw_features_collection_name)
 
             df['feature_hash'] = self._compute_hash(df)
             collection.create_index(
@@ -121,7 +121,6 @@ class DataPersistance:
                 df = pd.concat([raw_data_df, other_data_df], axis=0)
                 df['created_at'] = pd.to_datetime(df['created_at'], utc=True)
                 df['created_at'] = df['created_at'].dt.strftime('%d-%m-%Y')
-                df = df.sort_values(by='created_at').set_index('created_at')
                 
                 imported_data_path = self.data_persistance_config.imported_data_path
                 imported_data_dir = os.path.dirname(imported_data_path)
