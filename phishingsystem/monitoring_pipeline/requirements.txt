@@ -1,0 +1,7 @@
+azure-functions
+azure-storage-blob
+pymongo
+pandas
+numpy
+requests
+python-dotenv
