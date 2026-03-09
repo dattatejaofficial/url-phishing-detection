@@ -1,0 +1,10 @@
+PyYAML
+azure-functions
+azure-storage-blob
+azure-communication-email
+pymongo
+pandas==2.1.4
+numpy==1.26.4
+requests
+python-dotenv
+cryptography==43.0.3
