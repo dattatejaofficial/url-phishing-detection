@@ -1,5 +1,6 @@
 import sys
 
+import hashlib
 import re
 from urllib.parse import urlsplit
 import tldextract
@@ -89,6 +90,8 @@ class URLFeaturesExtraction:
     def extract_features(self) -> dict[str, float]:
         try:
             features = {}
+
+            features['url'] = self.url
             features['has_https'] = int(self.protocol == 'https')
 
             # Length features

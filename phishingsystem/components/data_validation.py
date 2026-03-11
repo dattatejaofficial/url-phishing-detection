@@ -3,7 +3,7 @@ import sys
 
 from phishingsystem.logging.logger import logging
 from phishingsystem.exception.exception import PhishingSystemException
-from phishingsystem.utils.main_utils import read_yaml_file, read_csv_file
+from phishingsystem.utils.main_utils import read_yaml_file, read_parquet_file
 
 import json
 import pandas as pd
@@ -104,13 +104,13 @@ class DataValidation:
     def _detect_data_drift(self, reference_df: pd.DataFrame, current_df: pd.DataFrame):
         try:
             numerical_columns = list(self.schema.get('numerical_columns'))
-            categorical_columns = list(self.schema.get('categorical_columns'))
+            non_numerical_columns = list(self.schema.get('non_numerical_columns'))
             metrics = []
             
             for feature in numerical_columns:
                 metrics.append(ColumnDriftMetric(column_name=feature,stattest='psi',stattest_threshold=self.data_validation_config.psi_threshold))
             
-            for feature in categorical_columns:
+            for feature in non_numerical_columns:
                 metrics.append(ColumnDriftMetric(column_name=feature,stattest='chi_square',stattest_threshold=self.data_validation_config.chi_square_threshold))
 
             report = Report(metrics=metrics)
@@ -133,7 +133,7 @@ class DataValidation:
                     if psi_value is not None and drift_detected:
                         drifted_features.append(feature)
 
-                elif feature in categorical_columns:
+                elif feature in non_numerical_columns:
                     chi_square_value = result['drift_score']
                     categorical_drift[feature] = chi_square_value
 
@@ -168,10 +168,10 @@ class DataValidation:
         try:
             logging.info('Initiating Data Validation')
             if not self.data_persistance_artifact:     # Data Validation -> Data Persistance
-                df = read_csv_file(self.feature_extraction_artifact.features_data_path)
+                df = read_parquet_file(self.feature_extraction_artifact.features_data_path)
                 self._validate_data(df)
             else:
-                df = read_csv_file(self.data_persistance_artifact.imported_data_path)       # Data Persistance -> Data Validation
+                df = read_parquet_file(self.data_persistance_artifact.imported_data_path)       # Data Persistance -> Data Validation
                 self._validate_data(df)
 
                 if not self.report['errors']:
@@ -199,7 +199,7 @@ class DataValidation:
                 validated_dir = os.path.dirname(validated_data_path)
                 os.makedirs(validated_dir,exist_ok=True)
 
-                df.to_csv(validated_data_path, index=False, header=True)
+                df.to_parquet(validated_data_path, index=False, engine='pyarrow')
                 logging.info('Saved the Validated data')
             
             data_validation_artifact = DataValidationArtifact(

@@ -8,7 +8,7 @@ from phishingsystem.entity.config_entity import FeatureExtractionConfig
 from phishingsystem.entity.artifact_entity import DataPreparationArtifact, FeatureExtractionArtifact
 
 from phishingsystem.utils.url_preparation.url_feature_extraction import URLFeaturesExtraction
-from phishingsystem.utils.main_utils import read_csv_file
+from phishingsystem.utils.main_utils import read_parquet_file
 
 import pandas as pd
 
@@ -21,7 +21,7 @@ class FeatureExtraction:
         try:
             logging.info('Initiating Feature Extraction')
 
-            processed_data = read_csv_file(self.data_preparation_artifact.processed_data_path)
+            processed_data = read_parquet_file(self.data_preparation_artifact.processed_data_path)
             url_col = self.data_preparation_artifact.processed_column_name
 
             features_dict = processed_data[url_col].apply(lambda url: URLFeaturesExtraction(url).extract_features())
@@ -36,7 +36,7 @@ class FeatureExtraction:
             os.makedirs(dir_path, exist_ok=True)
 
             features_df = features_df.drop_duplicates(ignore_index=True)
-            features_df.to_csv(features_data_path,index=False,header=True)
+            features_df.to_parquet(features_data_path,index=False, engine='pyarrow')
             logging.info('Saved the features data')
 
             feature_extraction_artifact = FeatureExtractionArtifact(

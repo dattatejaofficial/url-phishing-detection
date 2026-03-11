@@ -192,7 +192,7 @@ class DataPreparation:
             processed_data_path = self.preparation_config.processed_data_path
             dir_path = os.path.dirname(processed_data_path)
             os.makedirs(dir_path, exist_ok=True)
-            df.to_csv(processed_data_path, index=False, header=True)
+            df.to_parquet(processed_data_path, index=False, engine='pyarrow')
             logging.info('Saved the processed data')
 
             data_preparation_artifact = DataPreparationArtifact(

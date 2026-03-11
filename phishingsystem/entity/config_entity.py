@@ -72,6 +72,7 @@ class DataPersistanceConfig:
             training_pipeline.DATA_PERSISTANCE_DATA_DIR_NAME,
             training_pipeline.IMPORTED_DATA_PATH
         )
+        self.url_column_name = training_pipeline.ORIGINAL_URL_COLUMN_NAME
         self.database_name = training_pipeline.MONOGDB_DATABASE_NAME
         self.raw_features_collection_name = training_pipeline.MONGODB_FEATURES_COLLECTION_NAME
         self.feedback_features_collection_name = training_pipeline.MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME

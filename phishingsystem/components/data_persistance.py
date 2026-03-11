@@ -8,12 +8,13 @@ from phishingsystem.exception.exception import PhishingSystemException
 
 import pandas as pd
 import pymongo
+from pymongo.errors import BulkWriteError
 import hashlib
 from datetime import datetime, timezone
 from phishingsystem.entity.config_entity import DataPersistanceConfig, DataEnvelopConfig
 from phishingsystem.entity.artifact_entity import DataPersistanceArtifact, DataEnvelopArtifact
 
-from phishingsystem.utils.main_utils import read_csv_file
+from phishingsystem.utils.main_utils import read_parquet_file
 
 MONGODB_URI = os.getenv('MONGODB_URI')
 if not MONGODB_URI:
@@ -30,44 +31,48 @@ class DataPersistance:
         collection = db[collection_name]
         return client, collection
     
-    def _compute_hash(self, df : pd.DataFrame) -> pd.Series:
-        feature_cols = sorted(df.columns)
-        normalized = df[feature_cols].copy().round(6).astype(str)
-        normalized = normalized.drop_duplicates(ignore_index=True)
-
-        return normalized.agg('|'.join,axis=1).map(lambda x: hashlib.sha256(x.encode()).hexdigest())
+    def _compute_hash(self, url : pd.DataFrame) -> pd.Series:
+        return hashlib.sha256(url.encode()).hexdigest()
     
     def export_data_to_collections(self, df: pd.DataFrame):
         try:
             client, collection = self._get_collection(self.data_persistance_config.raw_features_collection_name)
 
-            df['feature_hash'] = self._compute_hash(df)
-            collection.create_index(
-                [('feature_hash', pymongo.ASCENDING)],
-                unique = True
-            )
-
-            documents = df.to_dict(orient='records')
-
             operations = []
-            for doc in documents:
+
+            for _, row in df.iterrows():
+                url = row.get(self.data_persistance_config.url_column_name,"")
+                url_hash = self._compute_hash(url)
+
+                doc = row.to_dict()
+                doc.pop(self.data_persistance_config.url_column_name, None)
+
+                doc["_id"] = url_hash
+                doc['created_at'] = datetime.now(timezone.utc)
+
                 operations.append(
                     pymongo.UpdateOne(
-                        {'feature_hash' : doc['feature_hash']},
-                        {'$setOnInsert' : {
-                            **doc,
-                            'created_at' : datetime.now(timezone.utc)
-                        }},
+                        {"_id" : url_hash},
+                        {"$setOnInsert" : doc},
                         upsert=True
                     )
                 )
-            
+
             batch_size = 2000
-            for i in range(0,len(operations),batch_size):
-                collection.bulk_write(
-                    operations[i:i+batch_size],
-                    ordered=False
-                )
+
+            for i in range(0, len(operations), batch_size):
+                batch = operations[i:i+batch_size]
+
+                try:
+                    collection.bulk_write(
+                        batch,
+                        ordered=False
+                    )
+                except BulkWriteError as bwe:
+                    for err in bwe.details.get("writeErrors", []):
+                        if err['code'] != 11000:
+                            raise
+
             logging.info('Exported data to MongoDB Database')
 
         except Exception as e:
@@ -103,7 +108,7 @@ class DataPersistance:
             if self.data_validation_artifact:       # Data Validation -> Data Persistance
                 validated_data_path = self.data_validation_artifact.validated_data_path
                 if self.data_validation_artifact.validation_status == "PASS":
-                    df = read_csv_file(validated_data_path)
+                    df = read_parquet_file(validated_data_path)
                     self.export_data_to_collections(df)
 
                     data_persistance_artifact = DataPersistanceArtifact(
@@ -120,13 +125,12 @@ class DataPersistance:
                 
                 df = pd.concat([raw_data_df, other_data_df], axis=0)
                 df['created_at'] = pd.to_datetime(df['created_at'], utc=True)
-                df['created_at'] = df['created_at'].dt.strftime('%d-%m-%Y')
                 
                 imported_data_path = self.data_persistance_config.imported_data_path
                 imported_data_dir = os.path.dirname(imported_data_path)
                 os.makedirs(imported_data_dir,exist_ok=True)
 
-                df.to_csv(imported_data_path,header=True,index=False)
+                df.to_parquet(imported_data_path,index=False, engine='pyarrow')
 
                 data_persistance_artifact = DataPersistanceArtifact(
                     imported_data_path = imported_data_path,

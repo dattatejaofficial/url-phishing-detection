@@ -11,6 +11,12 @@ def read_csv_file(path : str) -> pd.DataFrame:
     except Exception as e:
         raise PhishingSystemException(e,sys)
 
+def read_parquet_file(path : str) -> pd.DataFrame:
+    try:
+        return pd.read_parquet(path, engine='pyarrow')
+    except Exception as e:
+        raise PhishingSystemException(e,sys)
+
 def read_yaml_file(path : str) -> dict:
     try:
         with open(path,'r') as file:
