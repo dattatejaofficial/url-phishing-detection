@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from phishingsystem.entity.config_entity import DataPersistanceConfig, DataEnvelopConfig
 from phishingsystem.entity.artifact_entity import DataPersistanceArtifact, DataEnvelopArtifact
 
-from phishingsystem.utils.main_utils import read_parquet_file
+from phishingsystem.utils.main_utils import read_parquet_file, compute_sample_weights, save_numpy_array
 
 MONGODB_URI = os.getenv('MONGODB_URI')
 if not MONGODB_URI:
@@ -48,7 +48,7 @@ class DataPersistance:
                 doc.pop(self.data_persistance_config.url_column_name, None)
 
                 doc["_id"] = url_hash
-                doc['created_at'] = datetime.now(timezone.utc)
+                doc['timestamp'] = datetime.now(timezone.utc)
 
                 operations.append(
                     pymongo.UpdateOne(
@@ -87,10 +87,13 @@ class DataPersistance:
             client, collection = self._get_collection(collection_name)
             
             documents = list(collection.find())
+
+            if not documents:
+                return pd.DataFrame()
+            
             df = pd.DataFrame(documents)
+            df['timestamp'] = pd.to_datetime(df['timestamp'],utc=True)
             df = df.drop_duplicates(ignore_index=True)
-            if "_id" in df:
-                df.drop(columns="_id",inplace=True)
             
             logging.info('Imported data from MonogDB Database')
             return df
@@ -102,6 +105,17 @@ class DataPersistance:
             if client:
                 client.close()
     
+    def merge_data(self, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+        try:
+            df = pd.concat([df1, df2[df1.columns]], ignore_index=True)
+            df = df.sort_values(by='timestamp', ascending=False, ignore_index=True)
+            df = df.drop_duplicates(subset='_id',keep='last')
+
+            return df
+
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
+    
     def initiate_data_persistance(self):
         try:
             logging.info('Starting Data Persistance')
@@ -110,10 +124,14 @@ class DataPersistance:
                 if self.data_validation_artifact.validation_status == "PASS":
                     df = read_parquet_file(validated_data_path)
                     self.export_data_to_collections(df)
+                    logging.info("Exported data into the Database")
+
+                    df = df.drop(columns=[self.data_persistance_config.url_column_name])
 
                     data_persistance_artifact = DataPersistanceArtifact(
                         imported_data_path = None,
-                        validated_data_path = validated_data_path
+                        validated_data_path = validated_data_path,
+                        weights_data_path = None
                     )
 
                 else:
@@ -123,18 +141,38 @@ class DataPersistance:
                 raw_data_df = self.import_data_from_collection(self.data_persistance_config.raw_features_collection_name)
                 other_data_df = self.import_data_from_collection(self.data_persistance_config.feedback_features_collection_name)
                 
-                df = pd.concat([raw_data_df, other_data_df], axis=0)
-                df['created_at'] = pd.to_datetime(df['created_at'], utc=True)
-                
+                if other_data_df.empty:
+                    logging.info("The feedback data is empty")
+                    df = raw_data_df
+                    df = df.sort_values(by='timestamp',ascending=False,ignore_index=True)
+                else:
+                    df = self.merge_data(raw_data_df, other_data_df)
+                    logging.info("Merged the Existing dataset & the Feedback dataset")
+
+                weights = compute_sample_weights(df, self.data_persistance_config.last_n_days_feedback_data)
+                logging.info("Computed weights")
+
+                df.drop(columns=['timestamp','_id'],inplace=True)
+                df[self.data_persistance_config.target_column_name] = df.pop(self.data_persistance_config.target_column_name)
+
+                weights_data_path = self.data_persistance_config.weights_data_path
+                weights_data_dir = os.path.dirname(weights_data_path)
+                os.makedirs(weights_data_dir,exist_ok=True)
+
                 imported_data_path = self.data_persistance_config.imported_data_path
                 imported_data_dir = os.path.dirname(imported_data_path)
                 os.makedirs(imported_data_dir,exist_ok=True)
 
                 df.to_parquet(imported_data_path,index=False, engine='pyarrow')
+                logging.info("Saved the merged dataset")
+
+                save_numpy_array(weights, weights_data_path)
+                logging.info("Saved the weights")
 
                 data_persistance_artifact = DataPersistanceArtifact(
                     imported_data_path = imported_data_path,
-                    validated_data_path = None
+                    validated_data_path = None,
+                    weights_data_path = weights_data_path
                 )
             
             data_envelop_artifact = DataEnvelopArtifact(
