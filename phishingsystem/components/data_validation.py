@@ -7,10 +7,6 @@ from phishingsystem.utils.main_utils import read_yaml_file, read_parquet_file
 
 import json
 import pandas as pd
-from datetime import datetime, timedelta
-
-from evidently.legacy.report import Report
-from evidently.legacy.metrics import ColumnDriftMetric
 
 from phishingsystem.entity.config_entity import DataValidationConfig, DataEnvelopConfig
 from phishingsystem.entity.artifact_entity import DataValidationArtifact, DataEnvelopArtifact
@@ -35,6 +31,8 @@ class DataValidation:
         missing_columns = expected_columns - actual_columns
         extra_columns = actual_columns - expected_columns
 
+        missing_columns.discard(self.data_validation_config.ignore_column_in_validation)
+        
         if missing_columns:
             self.report['errors']['missing_columns'] = list(missing_columns)
         
@@ -100,69 +98,6 @@ class DataValidation:
             return
         
         self._validate_allowed_values(df)
-    
-    def _detect_data_drift(self, reference_df: pd.DataFrame, current_df: pd.DataFrame):
-        try:
-            numerical_columns = list(self.schema.get('numerical_columns'))
-            non_numerical_columns = list(self.schema.get('non_numerical_columns'))
-            metrics = []
-            
-            for feature in numerical_columns:
-                metrics.append(ColumnDriftMetric(column_name=feature,stattest='psi',stattest_threshold=self.data_validation_config.psi_threshold))
-            
-            for feature in non_numerical_columns:
-                metrics.append(ColumnDriftMetric(column_name=feature,stattest='chi_square',stattest_threshold=self.data_validation_config.chi_square_threshold))
-
-            report = Report(metrics=metrics)
-            report.run(reference_data=reference_df, current_data=current_df)
-            report_dict = report.as_dict()
-
-            numerical_drift = {}
-            categorical_drift = {}
-            drifted_features = []
-
-            for metric in report_dict['metrics']:
-                result = metric['result']
-                feature = result['column_name']
-                drift_detected = result['drift_detected']
-
-                if feature in numerical_columns:
-                    psi_value = result['drift_score']
-                    numerical_drift[feature] = psi_value
-
-                    if psi_value is not None and drift_detected:
-                        drifted_features.append(feature)
-
-                elif feature in non_numerical_columns:
-                    chi_square_value = result['drift_score']
-                    categorical_drift[feature] = chi_square_value
-
-                    if drift_detected:
-                        drifted_features.append(feature)
-            
-            if len(drifted_features) >= self.data_validation_config.max_warn_features:
-                status = 'WARN'
-            elif len(drifted_features) >= self.data_validation_config.max_fail_features:
-                status = 'FAIL'
-            else:
-                status = 'PASS'
-            
-            self.report['data_drift'] = {
-                'status' : status,
-                'drifted_features' : list(set(drifted_features)),
-                'numerical_drift' : numerical_drift,
-                'categorical_drift' : categorical_drift
-            }
-
-            if status == 'WARN':
-                self.report['warnings']['data_drift'] = f'Drift detected in {len(drifted_features)} features'
-            elif status == 'FAIL':
-                self.report['errors']['data_drift'] = f'Severe drift detected in {len(drifted_features)} features'
-            
-            logging.info('Completed Drift detection')
-
-        except Exception as e:
-            raise PhishingSystemException(e,sys)
               
     def initiate_data_validation(self):
         try:
@@ -173,15 +108,6 @@ class DataValidation:
             else:
                 df = read_parquet_file(self.data_persistance_artifact.imported_data_path)       # Data Persistance -> Data Validation
                 self._validate_data(df)
-
-                if not self.report['errors']:
-                    end_time = df.index.max()
-                    start_time = end_time - timedelta(days = 7)
-
-                    reference_df = df.loc[df.index < start_time]
-                    current_df = df.loc[(df.index >= start_time) & (df.index <= end_time)]
-
-                    self._detect_data_drift(reference_df=reference_df, current_df=current_df)
             
             if self.report['errors']:
                 self.report['status'] = "FAIL"
@@ -205,7 +131,8 @@ class DataValidation:
             data_validation_artifact = DataValidationArtifact(
                 validated_data_path = validated_data_path,
                 validation_report_path = report_path,
-                validation_status = self.report["status"]
+                validation_status = self.report["status"],
+                weights_data_path = self.data_persistance_artifact.weights_data_path
             )
 
             data_envelop_artifact = DataEnvelopArtifact(

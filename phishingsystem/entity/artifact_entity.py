@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class DataPreparationArtifact:
@@ -15,11 +16,13 @@ class DataValidationArtifact:
     validated_data_path : str
     validation_report_path : str
     validation_status : str
+    weights_data_path : Optional[str] = None
 
 @dataclass
 class DataPersistanceArtifact:
     imported_data_path : str
     validated_data_path : str
+    weights_data_path : str
 
 @dataclass
 class DataEnvelopArtifact:
@@ -30,6 +33,7 @@ class DataEnvelopArtifact:
 class DataTransformationArtifact:
     train_data_path : str
     test_data_path : str
+    train_data_weights_path : str
 
 @dataclass
 class ModelTrainerArtifact:

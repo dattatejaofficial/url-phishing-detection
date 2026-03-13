@@ -1,4 +1,7 @@
 columns:
+  url:
+    dtype : object
+
   has_https:
     dtype : int64
     allowed_values : [0,1]
@@ -105,7 +108,8 @@ numerical_columns:
   - path_token_count
   - avg_token_length
 
-categorical_columns:
+non_numerical_columns:
+  - url
   - has_https
   - sld_has_digit
   - sld_has_hyphen

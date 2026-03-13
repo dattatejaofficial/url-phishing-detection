@@ -33,8 +33,11 @@ MAX_FAIL_FEATURES = 10
 DATA_PERSISTANCE_DIR_NAME = 'data_persistance'
 DATA_PERSISTANCE_DATA_DIR_NAME = 'imported'
 IMPORTED_DATA_PATH = 'imported_data.parquet'
+DATA_PERSISTANCE_WEIGHTS_DIR_NAME = 'weights'
+WEIGHTS_DATA_PATH = 'weights.npy'
 MONOGDB_DATABASE_NAME = 'URLPhishingSystem'
 MONGODB_FEATURES_COLLECTION_NAME = 'URLStructuralFeatures'
+LAST_N_DAYS_FEEDBACK_DATA = 90
 
 # Data Transformation
 DATA_TRANSFORMATION_DIR_NAME = 'data_transformation'
@@ -42,6 +45,8 @@ DATA_TRANSFORMATION_TRAIN_DIR_NAME = 'train'
 TRAIN_DATA_PATH = 'train_arr.npy'
 DATA_TRANSFORMATION_TEST_DIR_NAME = 'test'
 TEST_DATA_PATH = 'test_arr.npy'
+DATA_TRANSFORMATION_WEIGHTS_DIR_NAME = 'weights'
+TRAIN_DATA_WEIGHTS_PATH = 'train_data_weights.npy'
 TEST_SPLIT_RATIO = 0.2
 
 # Model Trainer
@@ -49,6 +54,8 @@ MODEL_TRAINER_DIR_NAME = 'model_training'
 MODEL_TRAINER_PROB_DIR_NAME = 'probs'
 PROBABILITY_DATA_PATH = 'prob_arr.npy'
 REGISTERED_MODEL_NAME = 'phishingDetectionModel'
+SHAP_PLOT_DIR_NAME = 'shap_graph'
+SHAP_PLOT_PATH = 'shap_graph.png'
 IMBALANCE_RATIO_THRESHOLD = 0.2
 MAX_CLASS_WEIGHT = 10.0
 

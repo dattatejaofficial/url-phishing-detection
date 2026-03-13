@@ -56,6 +56,8 @@ class ModelTrainer:
                 if ratio > self.model_trainer_config.imbalance_ratio_threshold:
                     scale_pos_weight = min(ratio, self.model_trainer_config.max_class_weight)
 
+            weights = load_numpy_array(self.data_transformation_artifact.train_data_weights_path) if self.data_transformation_artifact.train_data_weights_path is not None else None
+
             def objective(params : dict):
                 params['scale_pos_weight'] = scale_pos_weight
                 params['max_depth'] = int(params['max_depth'])
@@ -78,8 +80,10 @@ class ModelTrainer:
                     X_tr, y_tr = X_train[tr_idx], y_train[tr_idx]
                     X_val, y_val = X_train[val_idx], y_train[val_idx]
 
+                    w_tr = weights[tr_idx] if weights is not None else None
+
                     model = XGBClassifier(**params)
-                    model.fit(X_tr,y_tr)
+                    model.fit(X_tr,y_tr, sample_weight=w_tr)
 
                     preds = model.predict(X_val)
                     recalls.append(recall_score(y_val,preds))
@@ -164,7 +168,7 @@ class ModelTrainer:
                 os.makedirs(shap_plot_dir, exist_ok=True)
                 
                 plt.savefig(self.model_trainer_config.shap_plot_path, dpi=150,bbox_inches='tight')
-                mlflow.log_artifact('shap_bar.png',artifact_path='shap')
+                mlflow.log_artifact(self.model_trainer_config.shap_plot_path,artifact_path='shap')
                 plt.close()
                 
                 signature = infer_signature(X_train, final_model.predict(X_train))

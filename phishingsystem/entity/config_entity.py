@@ -55,6 +55,7 @@ class DataValidationConfig:
             training_pipeline.DATA_VALIDATION_REPORT_DIR_NAME,
             training_pipeline.DATA_VALIDATION_REPORT
         )
+        self.ignore_column_in_validation : str = training_pipeline.ORIGINAL_URL_COLUMN_NAME
         self.data_scheme_path : str = training_pipeline.DATA_SCHEME_PATH
         self.psi_threshold : float = training_pipeline.PSI_THRESHOLD
         self.chi_square_threshold : float = training_pipeline.CHI_SQUARE_THRESHOLD
@@ -72,10 +73,17 @@ class DataPersistanceConfig:
             training_pipeline.DATA_PERSISTANCE_DATA_DIR_NAME,
             training_pipeline.IMPORTED_DATA_PATH
         )
+        self.weights_data_path : str = os.path.join(
+            self.data_persistance_dir,
+            training_pipeline.DATA_PERSISTANCE_WEIGHTS_DIR_NAME,
+            training_pipeline.WEIGHTS_DATA_PATH
+        )
         self.url_column_name = training_pipeline.ORIGINAL_URL_COLUMN_NAME
+        self.target_column_name = training_pipeline.TARGET_COLUMN_NAME
         self.database_name = training_pipeline.MONOGDB_DATABASE_NAME
         self.raw_features_collection_name = training_pipeline.MONGODB_FEATURES_COLLECTION_NAME
         self.feedback_features_collection_name = training_pipeline.MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME
+        self.last_n_days_feedback_data = training_pipeline.LAST_N_DAYS_FEEDBACK_DATA
 
 class DataEnvelopConfig:
     def __init__(self, feature_extraction_artifact : FeatureExtractionArtifact, data_persistance_artifact : DataPersistanceArtifact, data_validation_artifact : DataValidationArtifact):
@@ -99,6 +107,11 @@ class DataTransformationConfig:
             training_pipeline.DATA_TRANSFORMATION_TEST_DIR_NAME,
             training_pipeline.TEST_DATA_PATH
         )
+        self.train_data_weights_path = os.path.join(
+            self.data_transformation_dir,
+            training_pipeline.DATA_TRANSFORMATION_WEIGHTS_DIR_NAME,
+            training_pipeline.TRAIN_DATA_WEIGHTS_PATH
+        )
         self.test_split_ratio : float = training_pipeline.TEST_SPLIT_RATIO
 
 class ModelTrainerConfig:
@@ -112,6 +125,13 @@ class ModelTrainerConfig:
             training_pipeline.MODEL_TRAINER_PROB_DIR_NAME,
             training_pipeline.PROBABILITY_DATA_PATH
         )
+
+        self.shap_plot_path : str = os.path.join(
+            self.model_trainer_dir,
+            training_pipeline.SHAP_PLOT_DIR_NAME,
+            training_pipeline.SHAP_PLOT_PATH
+        )
+
         self.artifact_name : str = training_pipeline_config.timestamp + '__' + training_pipeline_config.artifact_name
         self.registered_model_name : str = training_pipeline.REGISTERED_MODEL_NAME
         self.imbalance_ratio_threshold : float = training_pipeline.IMBALANCE_RATIO_THRESHOLD
