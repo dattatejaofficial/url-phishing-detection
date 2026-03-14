@@ -162,3 +162,7 @@ class ModelFinalizerConfig:
             training_pipeline.MODEL_FINALIZER_THRESHOLD_DIR_NAME,
             training_pipeline.FINAL_THRESHOLD_PATH
         )
+
+class ArtifactPublisherConfig:
+    def __init__(self, training_pipeline_config : TrainingPipelineConfig):
+        self.artifact_dir = training_pipeline_config.artifact_dir

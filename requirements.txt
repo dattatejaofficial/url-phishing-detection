@@ -14,3 +14,4 @@ pymongo
 ipykernel
 hyperopt
 evidently
+azure-storage-blob

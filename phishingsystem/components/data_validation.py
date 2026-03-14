@@ -105,9 +105,13 @@ class DataValidation:
             if not self.data_persistance_artifact:     # Data Validation -> Data Persistance
                 df = read_parquet_file(self.feature_extraction_artifact.features_data_path)
                 self._validate_data(df)
+
+                weights_data_path = None
             else:
                 df = read_parquet_file(self.data_persistance_artifact.imported_data_path)       # Data Persistance -> Data Validation
                 self._validate_data(df)
+
+                weights_data_path = self.data_persistance_artifact.weights_data_path
             
             if self.report['errors']:
                 self.report['status'] = "FAIL"
@@ -132,7 +136,7 @@ class DataValidation:
                 validated_data_path = validated_data_path,
                 validation_report_path = report_path,
                 validation_status = self.report["status"],
-                weights_data_path = self.data_persistance_artifact.weights_data_path
+                weights_data_path = weights_data_path
             )
 
             data_envelop_artifact = DataEnvelopArtifact(

@@ -40,7 +40,7 @@ class ModelTrainer:
                 "subsample" : hp.uniform("subsample",0.6,1.0),
                 "colsample_bytree" : hp.uniform("colsample_bytree",0.6,1.0),
                 "gamma" : hp.uniform("gamma",0,5),
-                "min_child_weight" : hp.qloguniform("min_child_weight",1,10,1),
+                "min_child_weight" : hp.qloguniform("min_child_weight",np.log(1),np.log(10),1),
                 "reg_alpha" : hp.loguniform("reg_alpha",np.log(1e-3),np.log(1)),
                 "reg_lambda" : hp.loguniform("reg_lambda",np.log(1),np.log(10))
             }
@@ -115,7 +115,8 @@ class ModelTrainer:
                     trials = trials,
                     fn = objective,
                     space = search_space,
-                    max_evals = 50
+                    max_evals = 50,
+                    rstate=np.random.default_rng(42)
                 )
 
                 best_params['scale_pos_weight'] = scale_pos_weight
@@ -131,7 +132,7 @@ class ModelTrainer:
                 })
 
                 final_model = XGBClassifier(**best_params)
-                final_model.fit(X_train,y_train)
+                final_model.fit(X_train,y_train, sample_weight=weights)
 
                 train_preds = final_model.predict(X_train)
                 test_preds = final_model.predict(X_test)
@@ -150,7 +151,7 @@ class ModelTrainer:
                 
                 np.random.seed(42)
 
-                splitter = StratifiedShuffleSplit(n_splits=1,test_size=500,random_state=42)
+                splitter = StratifiedShuffleSplit(n_splits=1,test_size=200,random_state=42)
                 for _, idx in splitter.split(X_train, y_train):
                     X_shap = X_train[idx]
                 

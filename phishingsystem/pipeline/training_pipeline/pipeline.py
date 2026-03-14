@@ -12,7 +12,8 @@ from phishingsystem.entity.config_entity import (
     DataTransformationConfig,
     ModelTrainerConfig,
     ModelEvaluationConfig,
-    ModelFinalizerConfig
+    ModelFinalizerConfig,
+    ArtifactPublisherConfig
 )
 
 from phishingsystem.entity.artifact_entity import (
@@ -35,6 +36,7 @@ from phishingsystem.components.data_transformation import DataTransformation
 from phishingsystem.components.model_training import ModelTrainer
 from phishingsystem.components.model_evaluation import ModelEvaluation
 from phishingsystem.components.model_finalizer import ModelFinalizer
+from phishingsystem.components.artifact_publisher import ArtifactPublisher
 
 class TrainingPipeline:
     def __init__(self):
@@ -122,8 +124,17 @@ class TrainingPipeline:
 
         except Exception as e:
             raise PhishingSystemException(e,sys)
+    
+    def start_artifact_publishing(self):
+        try:
+            artifact_publisher_config = ArtifactPublisherConfig(training_pipeline_config = self.training_pipeline_config)
+            artifact_publisher = ArtifactPublisher(artifact_publisher_config = artifact_publisher_config)
+            artifact_publisher.initiate_artifact_publisher()
         
-    def run_pipeline(self) -> ModelFinalizerArtifact:
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
+        
+    def run_pipeline(self):
         try:
             logging.info("Initiating Training Pipeline")
             data_preparation_artifact = self.start_data_preparation()
@@ -134,9 +145,9 @@ class TrainingPipeline:
             model_trainer_artifact = self.start_model_training(data_transformation_artifact)
             model_evaluation_artifact = self.start_model_evaluation(model_trainer_artifact)
             model_finalizer_artifact = self.start_model_finalization(model_evaluation_artifact)
-            logging.info("Completed Training Pipeline")
+            self.start_artifact_publishing()
             
-            return model_finalizer_artifact
+            logging.info("Completed Training Pipeline")
 
         except Exception as e:
             raise PhishingSystemException(e,sys)

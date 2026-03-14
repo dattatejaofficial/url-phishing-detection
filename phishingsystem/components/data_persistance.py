@@ -127,6 +127,7 @@ class DataPersistance:
                     logging.info("Exported data into the Database")
 
                     df = df.drop(columns=[self.data_persistance_config.url_column_name])
+                    df.to_parquet(validated_data_path, index=False, engine='pyarrow')
 
                     data_persistance_artifact = DataPersistanceArtifact(
                         imported_data_path = None,

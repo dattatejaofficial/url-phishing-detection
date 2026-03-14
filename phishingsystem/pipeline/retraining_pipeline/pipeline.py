@@ -10,7 +10,8 @@ from phishingsystem.entity.config_entity import (
     DataTransformationConfig,
     ModelTrainerConfig,
     ModelEvaluationConfig,
-    ModelFinalizerConfig
+    ModelFinalizerConfig,
+    ArtifactPublisherConfig
 )
 
 from phishingsystem.entity.artifact_entity import (
@@ -29,6 +30,7 @@ from phishingsystem.components.data_transformation import DataTransformation
 from phishingsystem.components.model_training import ModelTrainer
 from phishingsystem.components.model_evaluation import ModelEvaluation
 from phishingsystem.components.model_finalizer import ModelFinalizer
+from phishingsystem.components.artifact_publisher import ArtifactPublisher
 
 class RetrainingPipeline:
     def __init__(self):
@@ -79,7 +81,7 @@ class RetrainingPipeline:
     
     def start_model_evaluation(self, model_trainer_artifact : ModelTrainerArtifact) -> ModelEvaluationArtifact:
         try:
-            model_evaluation_config = ModelEvaluationConfig(training_pipeline_config = self.training_pipeline_config)
+            model_evaluation_config = ModelEvaluationConfig(training_pipeline_config = self.retraining_pipeline_config)
             model_evaluation = ModelEvaluation(model_trainer_artifact = model_trainer_artifact, model_evaluation_config = model_evaluation_config)
             model_evaluation_artifact = model_evaluation.initiate_model_evaluation()
             return model_evaluation_artifact
@@ -89,11 +91,20 @@ class RetrainingPipeline:
     
     def start_model_finalization(self, model_evaluation_artifact : ModelEvaluationArtifact) -> ModelFinalizerArtifact:
         try:
-            model_finalizer_config = ModelFinalizerConfig(training_pipeline_config = self.training_pipeline_config)
+            model_finalizer_config = ModelFinalizerConfig(training_pipeline_config = self.retraining_pipeline_config)
             model_finalizer = ModelFinalizer(model_evaluation_artifact = model_evaluation_artifact, model_finalizer_config = model_finalizer_config)
             model_finalizer_artifact = model_finalizer.initiate_model_finalization()
             return model_finalizer_artifact
 
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
+    
+    def start_artifact_publishing(self):
+        try:
+            artifact_publisher_config = ArtifactPublisherConfig(training_pipeline_config = self.retraining_pipeline_config)
+            artifact_publisher = ArtifactPublisher(artifact_publisher_config = artifact_publisher_config)
+            artifact_publisher.initiate_artifact_publisher()
+        
         except Exception as e:
             raise PhishingSystemException(e,sys)
 
@@ -105,7 +116,9 @@ class RetrainingPipeline:
             data_transformation_artifact = self.start_data_transformation(data_validation_artifact)
             model_trainer_artifact = self.start_model_training(data_transformation_artifact)
             model_evaluation_artifact = self.start_model_evaluation(model_trainer_artifact)
-            self.start_model_finalization(model_evaluation_artifact)
+            model_finalizer_artifact = self.start_model_finalization(model_evaluation_artifact)
+            self.start_artifact_publishing()
+            
             logging.info("Completed Retraining Pipeline")
 
         except Exception as e:

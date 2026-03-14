@@ -52,14 +52,32 @@ class ModelFinalizer:
             return None
     
     def _load_metrics_from_run(self, run_id : str) -> dict:
-        run = self.client.get_run(run_id)
-        metrics = dict(run.data.metrics)
+        # run = self.client.get_run(run_id)
+        # metrics = dict(run.data.metrics)
+        artifacts = self.client.list_artifacts(run_id)
 
-        return metrics
+        for art in artifacts:
+            if 'evaluation' in art.path:
+                local_path = self.client.download_artifacts(run_id, art.path)
+
+                with open(local_path,'r') as f:
+                    return json.load(f)
+
+        return {}
     
     def _is_new_model_better(self, new_metrics : dict, prod_metrics : dict, recall_drop : float = 0.02) -> bool:
-        if new_metrics.get('recall',0.0) < prod_metrics.get('recall',0.0) - recall_drop:
+        new_recall = new_metrics.get('recall', 0)
+        prod_recall = prod_metrics.get('recall', 0)
+
+        new_f1 = new_metrics.get('f1_score', 0)
+        prod_f1 = new_metrics.get('f1_score', 0)
+
+        if new_recall < (prod_recall - recall_drop):
             return False
+        
+        if new_f1 < prod_f1:
+            return False
+        
         return True
     
     def initiate_model_finalization(self) -> ModelFinalizerArtifact:
@@ -97,10 +115,8 @@ class ModelFinalizer:
                         mlflow.log_metric(k,v)
 
                 local_model_dir = download_artifacts(self.model_evaluation_artifact.model_uri)
-                print("Local Model Directory: ", local_model_dir)
 
                 model_file_path = os.path.join(local_model_dir,'model.pkl')
-                print("Model file path: ", model_file_path)
 
                 mlflow.pyfunc.log_model(
                     name='final_model',

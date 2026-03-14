@@ -37,25 +37,22 @@ class ModelEvaluation:
             best_idx = valid_idxs[np.argmax(precision[valid_idxs])]
             best_threshold = thresholds[best_idx]
 
-            return {
-                'threshold' : float(best_threshold),
-                'accuracy' : float(accuracy_score(y_true, (y_prob >= best_threshold).astype(int))),
-                'precision' : float(precision[best_idx]),
-                'recall' : float(recall[best_idx]),
-                'f1_score' : float(f1_score(y_true, (y_prob >= best_threshold).astype(int)))
-            }
-
         except Exception:
-            fallback_threshold = np.percentile(y_prob,95)
+            precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
+            f1_scores = (2 * precision * recall) / (precision + recall + 1e-9)
 
-            return {
-                'threshold' : float(fallback_threshold),
-                'accuracy' : float(accuracy_score(y_true, (y_prob >= fallback_threshold).astype(int))),
-                'precision' : float(precision_score(y_true, (y_prob >= fallback_threshold).astype(int))),
-                'recall' : float(recall_score(y_true, (y_prob >= fallback_threshold).astype(int))),
-                'f1_score' : float(f1_score(y_true, (y_prob >= fallback_threshold).astype(int))),
-                'fallback_used' : True
-            }
+            best_idx = np.argmax(f1_scores)
+            best_threshold = thresholds[max(best_idx - 1, 0)]
+
+        preds = (y_prob >= best_threshold).astype(int)
+
+        return {
+            'threshold' : float(best_threshold),
+            'accuracy' : float(accuracy_score(y_true, preds)),
+            'precision' : float(precision_score(y_true, preds)),
+            'recall' : float(recall_score(y_true, preds)),
+            'f1_score' : float(f1_score(y_true, preds)),
+        }
     
     def initiate_model_evaluation(self):
         try:
