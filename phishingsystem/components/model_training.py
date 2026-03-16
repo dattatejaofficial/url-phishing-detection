@@ -1,5 +1,7 @@
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv()
 
 from phishingsystem.logging.logger import logging
 from phishingsystem.exception.exception import PhishingSystemException
@@ -23,10 +25,17 @@ from mlflow.models import infer_signature
 import shap
 import matplotlib.pyplot as plt
 
+MLFLOW_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI')
+if not MLFLOW_TRACKING_URI:
+    raise Exception('MLFLOW_TRACKING_URI not set')
+
 class ModelTrainer:
     def __init__(self, data_transformation_artifact : DataTransformationArtifact, model_trainer_config : ModelTrainerConfig):
         self.data_transformation_artifact = data_transformation_artifact
         self.model_trainer_config = model_trainer_config
+
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment(self.model_trainer_config.experiment_name)
 
     def _train_model(self, train_data, test_data):
         try:
@@ -109,7 +118,7 @@ class ModelTrainer:
 
             trials = Trials()
 
-            with mlflow.start_run(run_name='hyperopt_search'):
+            with mlflow.start_run(run_name='hyperopt_search') as parent_run:
                 best_params = fmin(
                     algo = tpe.suggest,
                     trials = trials,

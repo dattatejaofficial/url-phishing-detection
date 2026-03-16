@@ -58,6 +58,7 @@ SHAP_PLOT_DIR_NAME = 'shap_graph'
 SHAP_PLOT_PATH = 'shap_graph.png'
 IMBALANCE_RATIO_THRESHOLD = 0.2
 MAX_CLASS_WEIGHT = 10.0
+EXPERIMENT_NAME = 'phishing_detection'
 
 # Model Evaluation
 MODEL_EVALUATION_DIR_NAME = 'model_evaluation'

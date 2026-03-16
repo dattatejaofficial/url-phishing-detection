@@ -133,6 +133,7 @@ class ModelTrainerConfig:
         )
 
         self.artifact_name : str = training_pipeline_config.timestamp + '__' + training_pipeline_config.artifact_name
+        self.experiment_name : str = training_pipeline.EXPERIMENT_NAME
         self.registered_model_name : str = training_pipeline.REGISTERED_MODEL_NAME
         self.imbalance_ratio_threshold : float = training_pipeline.IMBALANCE_RATIO_THRESHOLD
         self.max_class_weight : float = training_pipeline.MAX_CLASS_WEIGHT

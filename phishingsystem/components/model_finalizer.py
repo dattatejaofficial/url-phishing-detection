@@ -52,8 +52,6 @@ class ModelFinalizer:
             return None
     
     def _load_metrics_from_run(self, run_id : str) -> dict:
-        # run = self.client.get_run(run_id)
-        # metrics = dict(run.data.metrics)
         artifacts = self.client.list_artifacts(run_id)
 
         for art in artifacts:
