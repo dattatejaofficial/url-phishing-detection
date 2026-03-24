@@ -22,89 +22,59 @@ jobs:
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
             --name ${{ secrets.VM_NAME }}
 
-      - name: Wait for VM to be ready
+      - name: Wait for VM
         run: |
-          echo "Waiting for SSH..."
-          for i in {1..20}; do
-            nc -zv ${{ secrets.VM_PUBLIC_IP }} 22 && break
-            echo "Retry $i..."
-            sleep 10
-          done
+          echo "Waiting for VM to be ready..."
+          sleep 60
 
       - name: Run retraining on VM
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VM_PUBLIC_IP }}
-          username: ${{ secrets.VM_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
+        run: |
+          az vm run-command invoke \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --name ${{ secrets.VM_NAME }} \
+            --command-id RunShellScript \
+            --scripts "
+              set -e
 
-            set -e
+              echo 'Navigating to project directory...'
+              cd ~/url-phishing-detection || { echo 'Directory not found'; exit 1; }
 
-            echo "Navigating to project directory..."
-            cd ~/url-phishing-detection || { echo "Directory not found"; exit 1; }
+              echo 'Activating virtual environment...'
+              source venv/bin/activate
 
-            echo "Activating virtual environment..."
-            source venv/bin/activate
+              echo 'Setting environment variables...'
+              export AZURE_STORAGE_CONNECTION_STRING='${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}'
+              export MLFLOW_TRACKING_URI='${{ secrets.MLFLOW_TRACKING_URI }}'
+              export MONGODB_URI='${{ secrets.MONGODB_URI }}'
+              export AZURE_BLOB_ARTIFACT_CONTAINER='${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}'
+              export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING='${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}'
 
-            echo "Setting environment variables..."
-            export AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"
-            export MLFLOW_TRACKING_URI="${{ secrets.MLFLOW_TRACKING_URI }}"
-            export MONGODB_URI="${{ secrets.MONGODB_URI }}"
-            export AZURE_BLOB_ARTIFACT_CONTAINER="${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}"
-            export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}"
+              echo 'Cleaning old MLflow processes...'
+              pkill -f \"mlflow server\" || true
 
-            [ -z "$AZURE_STORAGE_CONNECTION_STRING" ] && echo "Missing AZURE_STORAGE_CONNECTION_STRING" && exit 1
-            [ -z "$MLFLOW_TRACKING_URI" ] && echo "Missing MLFLOW_TRACKING_URI" && exit 1
-            [ -z "$MONGODB_URI" ] && echo "Missing MONGODB_URI" && exit 1
-            [ -z "$AZURE_ARTIFACT_STORAGE_CONNECTION_STRING" ] && echo "Missing AZURE_ARTIFACT_STORAGE_CONNECTION_STRING" && exit 1
-            [ -z "$AZURE_BLOB_ARTIFACT_CONTAINER" ] && echo "Missing AZURE_BLOB_ARTIFACT_CONTAINER" && exit 1
+              echo 'Starting MLflow server...'
+              nohup mlflow server \
+                --backend-store-uri sqlite:///mlflow.db \
+                --registry-store-uri sqlite:///mlflow.db \
+                --default-artifact-root wasbs://mlflow-artifacts@phishguardartifacts.blob.core.windows.net/ \
+                --host 0.0.0.0 \
+                --port 5000 \
+                > mlflow.log 2>&1 &
 
-            echo "Cleaning old MLflow processes..."
-            pkill -f "mlflow server" || true
+              echo 'Waiting for MLflow...'
+              sleep 15
 
-            echo "Starting MLflow server..."
-            nohup mlflow server \
-              --backend-store-uri sqlite:///mlflow.db \
-              --registry-store-uri sqlite:///mlflow.db \
-              --default-artifact-root wasbs://mlflow-artifacts@phishguardartifacts.blob.core.windows.net/ \
-              --host 0.0.0.0 \
-              --port 5000 \
-              > mlflow.log 2>&1 &
+              echo 'Verifying MLflow...'
+              curl -f http://localhost:5000 || { echo 'MLflow failed'; exit 1; }
 
-            echo "Waiting for MLflow to be ready..."
-            for i in {1..10}; do
-              curl -s http://localhost:5000 && break
-              echo "Waiting for MLflow ($i)..."
-              sleep 5
-            done
+              echo 'Running training pipeline...'
+              python -m phishingsystem.pipeline.training_pipeline.pipeline
 
-            echo "Verifying MLflow..."
-            curl -f http://localhost:5000 || { echo "MLflow failed to start"; exit 1; }
+              echo 'Stopping MLflow...'
+              pkill -f \"mlflow server\" || true
 
-            echo "Running retraining pipeline..."
-            python -m phishingsystem.pipeline.training_pipeline.pipeline
-
-            echo "Retraining completed successfully."
-
-            # 🔥 Graceful shutdown of MLflow
-            echo "Stopping MLflow server gracefully..."
-
-            MLFLOW_PID=$(pgrep -f "mlflow server" || true)
-
-            if [ -n "$MLFLOW_PID" ]; then
-              echo "MLflow PID: $MLFLOW_PID"
-              kill $MLFLOW_PID
-
-              sleep 5
-
-              if ps -p $MLFLOW_PID > /dev/null; then
-                echo "Force killing MLflow..."
-                kill -9 $MLFLOW_PID
-              fi
-            else
-              echo "No MLflow process found"
-            fi
+              echo 'Done.'
+            "
 
       - name: Stop Azure VM
         if: always()
