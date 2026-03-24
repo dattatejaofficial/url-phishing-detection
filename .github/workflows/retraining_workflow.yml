@@ -23,9 +23,7 @@ jobs:
             --name ${{ secrets.VM_NAME }}
 
       - name: Wait for VM
-        run: |
-          echo "Waiting for VM to be ready..."
-          sleep 60
+        run: sleep 60
 
       - name: Run retraining on VM
         run: |
@@ -36,44 +34,85 @@ jobs:
             --scripts "
               set -e
 
-              echo 'Navigating to project directory...'
-              cd ~/url-phishing-detection || { echo 'Directory not found'; exit 1; }
+              sudo -u ${{ secrets.VM_USERNAME }} bash << 'EOF'
 
-              echo 'Activating virtual environment...'
+              set -e
+
+              echo '=== DEBUG INFO ==='
+              echo 'User:' \$(whoami)
+              echo 'Home:' \$HOME
+
+              WORKDIR=/home/${{ secrets.VM_USERNAME }}/url-phishing-detection
+
+              echo '=== CHECKING REPO ==='
+              if [ ! -d \"\$WORKDIR\" ]; then
+                echo 'ERROR: Repo not found at' \$WORKDIR
+                exit 1
+              fi
+
+              cd \$WORKDIR
+
+              echo '=== SYNCING REPO (SAFE RESET) ==='
+              git fetch origin
+              git reset --hard origin/main
+              git clean -fd -e venv -e mlruns
+
+              echo '=== CHECKING VENV ==='
+              if [ ! -d \"venv\" ]; then
+                echo 'ERROR: venv not found'
+                exit 1
+              fi
+
+              echo '=== ACTIVATING ENV ==='
               source venv/bin/activate
 
-              echo 'Setting environment variables...'
+              echo '=== SETTING ENV VARS ==='
               export AZURE_STORAGE_CONNECTION_STRING='${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}'
-              export MLFLOW_TRACKING_URI='${{ secrets.MLFLOW_TRACKING_URI }}'
               export MONGODB_URI='${{ secrets.MONGODB_URI }}'
               export AZURE_BLOB_ARTIFACT_CONTAINER='${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}'
               export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING='${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}'
 
-              echo 'Cleaning old MLflow processes...'
-              pkill -f \"mlflow server\" || true
+              export MLFLOW_TRACKING_URI='http://127.0.0.1:5000'
 
-              echo 'Starting MLflow server...'
-              nohup mlflow server \
-                --backend-store-uri sqlite:///mlflow.db \
-                --registry-store-uri sqlite:///mlflow.db \
-                --default-artifact-root wasbs://mlflow-artifacts@phishguardartifacts.blob.core.windows.net/ \
-                --host 0.0.0.0 \
-                --port 5000 \
-                > mlflow.log 2>&1 &
+              echo '=== CHECKING MLFLOW SERVER ==='
+              if ! curl -s http://127.0.0.1:5000 > /dev/null; then
+                echo 'MLflow not running. Starting server...'
 
-              echo 'Waiting for MLflow...'
-              sleep 15
+                nohup mlflow server \
+                  --backend-store-uri sqlite:///mlflow.db \
+                  --registry-store-uri sqlite:///mlflow.db \
+                  --default-artifact-root wasbs://mlflow-artifacts@phishguardartifacts.blob.core.windows.net/ \
+                  --host 0.0.0.0 \
+                  --port 5000 \
+                  > mlflow.log 2>&1 &
 
-              echo 'Verifying MLflow...'
-              curl -f http://localhost:5000 || { echo 'MLflow failed'; exit 1; }
+                echo '=== WAITING FOR MLFLOW ==='
+                for i in {1..10}; do
+                  if curl -s http://127.0.0.1:5000 > /dev/null; then
+                    echo "MLflow is up"
+                    break
+                  fi
+                  echo "Waiting for MLflow..."
+                  sleep 3
+                done
 
-              echo 'Running training pipeline...'
-              python -m phishingsystem.pipeline.training_pipeline.pipeline
+                echo '=== MLFLOW LOGS ==='
+                cat mlflow.log || true
 
-              echo 'Stopping MLflow...'
-              pkill -f \"mlflow server\" || true
+                if ! curl -s http://127.0.0.1:5000 > /dev/null; then
+                  echo 'ERROR: MLflow not reachable locally'
+                  exit 1
+                fi
+              else
+                echo 'MLflow already running'
+              fi
 
-              echo 'Done.'
+              echo '=== RUNNING TRAINING ==='
+              python -m phishingsystem.pipeline.retraining_pipeline.pipeline
+
+              echo '=== DONE ==='
+
+              EOF
             "
 
       - name: Stop Azure VM
