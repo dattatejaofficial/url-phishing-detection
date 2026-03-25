@@ -25,94 +25,88 @@ jobs:
       - name: Wait for VM
         run: sleep 60
 
-      - name: Run retraining on VM
+      - name: Trigger training on VM
         run: |
           az vm run-command invoke \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
             --name ${{ secrets.VM_NAME }} \
             --command-id RunShellScript \
             --scripts "
-              set -e
+              VM_USERNAME='${{ secrets.VM_USERNAME }}'
+              WORKDIR=/home/\$VM_USERNAME/url-phishing-detection
 
-              sudo -u ${{ secrets.VM_USERNAME }} bash << 'EOF'
+              rm -f \$WORKDIR/TRAINING_DONE \$WORKDIR/TRAINING_FAILED
 
-              set -e
+              sudo -u \$VM_USERNAME bash -c '
+                export MONGODB_URI=\"${{ secrets.MONGODB_URI }}\"
+                export AZURE_STORAGE_CONNECTION_STRING=\"${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}\"
+                export AZURE_BLOB_ARTIFACT_CONTAINER=\"${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}\"
+                export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING=\"${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}\"
+                export MLFLOW_TRACKING_URI=\"http://127.0.0.1:5000\"
 
-              echo '=== DEBUG INFO ==='
-              echo 'User:' \$(whoami)
-              echo 'Home:' \$HOME
+                cd /home/\$USER/url-phishing-detection
 
-              WORKDIR=/home/${{ secrets.VM_USERNAME }}/url-phishing-detection
+                nohup bash scripts/retrain.sh \
+                  > run.log 2>&1 < /dev/null &
+              '
+            "
 
-              echo '=== CHECKING REPO ==='
-              if [ ! -d \"\$WORKDIR\" ]; then
-                echo 'ERROR: Repo not found at' \$WORKDIR
-                exit 1
-              fi
+      - name: Wait for training completion
+        run: |
+          echo "Polling VM..."
 
-              cd \$WORKDIR
+          MAX_ATTEMPTS=120
+          ATTEMPT=0
 
-              echo '=== SYNCING REPO (SAFE RESET) ==='
-              git fetch origin
-              git reset --hard origin/main
-              git clean -fd -e venv -e mlruns
-
-              echo '=== CHECKING VENV ==='
-              if [ ! -d \"venv\" ]; then
-                echo 'ERROR: venv not found'
-                exit 1
-              fi
-
-              echo '=== ACTIVATING ENV ==='
-              source venv/bin/activate
-
-              echo '=== SETTING ENV VARS ==='
-              export AZURE_STORAGE_CONNECTION_STRING='${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}'
-              export MONGODB_URI='${{ secrets.MONGODB_URI }}'
-              export AZURE_BLOB_ARTIFACT_CONTAINER='${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}'
-              export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING='${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}'
-
-              export MLFLOW_TRACKING_URI='http://127.0.0.1:5000'
-
-              echo '=== CHECKING MLFLOW SERVER ==='
-              if ! curl -s http://127.0.0.1:5000 > /dev/null; then
-                echo 'MLflow not running. Starting server...'
-
-                nohup mlflow server \
-                  --backend-store-uri sqlite:///mlflow.db \
-                  --registry-store-uri sqlite:///mlflow.db \
-                  --default-artifact-root wasbs://mlflow-artifacts@phishguardartifacts.blob.core.windows.net/ \
-                  --host 0.0.0.0 \
-                  --port 5000 \
-                  > mlflow.log 2>&1 &
-
-                echo '=== WAITING FOR MLFLOW ==='
-                for i in {1..10}; do
-                  if curl -s http://127.0.0.1:5000 > /dev/null; then
-                    echo "MLflow is up"
-                    break
-                  fi
-                  echo "Waiting for MLflow..."
-                  sleep 3
-                done
-
-                echo '=== MLFLOW LOGS ==='
-                cat mlflow.log || true
-
-                if ! curl -s http://127.0.0.1:5000 > /dev/null; then
-                  echo 'ERROR: MLflow not reachable locally'
-                  exit 1
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            RESULT=$(az vm run-command invoke \
+              --resource-group ${{ secrets.RESOURCE_GROUP }} \
+              --name ${{ secrets.VM_NAME }} \
+              --command-id RunShellScript \
+              --query "value[0].message" \
+              --output tsv \
+              --scripts "
+                if [ -f /home/${{ secrets.VM_USERNAME }}/url-phishing-detection/TRAINING_DONE ]; then
+                  echo DONE
+                elif [ -f /home/${{ secrets.VM_USERNAME }}/url-phishing-detection/TRAINING_FAILED ]; then
+                  echo FAILED
+                else
+                  echo RUNNING
                 fi
-              else
-                echo 'MLflow already running'
-              fi
+              ")
 
-              echo '=== RUNNING TRAINING ==='
-              python -m phishingsystem.pipeline.retraining_pipeline.pipeline
+            echo "Attempt $ATTEMPT → $RESULT"
 
-              echo '=== DONE ==='
+            if [[ "$RESULT" == *"DONE"* ]]; then
+              echo "Training completed!"
+              exit 0
+            fi
 
-              EOF
+            if [[ "$RESULT" == *"FAILED"* ]]; then
+              echo "Training failed!"
+              exit 1
+            fi
+
+            ATTEMPT=$((ATTEMPT+1))
+            sleep 30
+          done
+
+          echo "Timeout waiting for training"
+          exit 1
+
+      - name: Fetch logs
+        if: always()
+        run: |
+          az vm run-command invoke \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --name ${{ secrets.VM_NAME }} \
+            --command-id RunShellScript \
+            --scripts "
+              echo '=== RUN LOG ==='
+              tail -n 100 /home/${{ secrets.VM_USERNAME }}/url-phishing-detection/run.log
+
+              echo '=== TRAINING LOG ==='
+              tail -n 100 /home/${{ secrets.VM_USERNAME }}/url-phishing-detection/training.log
             "
 
       - name: Stop Azure VM
