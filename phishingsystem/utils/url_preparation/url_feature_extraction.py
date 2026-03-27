@@ -129,7 +129,7 @@ class URLFeaturesExtraction:
             features['path_token_count'] = path_tokens_count
             features['avg_token_length'] = self._avg_token_length()
 
-            return features
+            return dict(sorted(features.items()))
 
         except Exception as e:
             raise PhishingSystemException(e,sys)

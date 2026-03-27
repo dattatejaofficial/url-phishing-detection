@@ -4,3 +4,4 @@ mlflow.db
 /Artifacts
 /logs
 /mlruns
+mlflow-vm_key.pem

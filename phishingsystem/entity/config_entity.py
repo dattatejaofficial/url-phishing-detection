@@ -154,6 +154,7 @@ class ModelEvaluationConfig:
 
 class ModelFinalizerConfig:
     def __init__(self, training_pipeline_config : TrainingPipelineConfig):
+        self.metadata_path : str = training_pipeline.METADATA_PATH
         self.model_finalizer_dir_name : str = os.path.join(
             training_pipeline_config.artifact_dir,
             training_pipeline.MODEL_FINALIZER_DIR_NAME

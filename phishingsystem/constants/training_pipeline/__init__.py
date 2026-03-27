@@ -71,6 +71,7 @@ MIN_RECALL = 0.9700
 MODEL_FINALIZER_DIR_NAME = 'model_finalizer'
 MODEL_FINALIZER_THRESHOLD_DIR_NAME = 'report'
 FINAL_THRESHOLD_PATH = 'threshold.json'
+METADATA_PATH = 'metadata/production_model.json'
 
 # Feedback
 MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME = 'FeedbackURLs'

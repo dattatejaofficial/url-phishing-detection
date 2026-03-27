@@ -21,6 +21,29 @@ if [ -z "$MLFLOW_TRACKING_URI" ]; then
   exit 1
 fi
 
+if [ -z "$AZURE_ARTIFACT_STORAGE_CONNECTION_STRING" ]; then
+  echo "ERROR: AZURE_ARTIFACT_STORAGE_CONNECTION_STRING missing"
+  touch TRAINING_FAILED
+  exit 1
+fi
+
+if [ -z "$AZURE_BLOB_ARTIFACT_CONTAINER" ]; then
+  echo "ERROR: AZURE_BLOB_ARTIFACT_CONTAINER missing"
+  touch TRAINING_FAILED
+  exit 1
+fi
+
+if [ -z "$AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER" ]; then
+  echo "ERROR: AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER missing"
+  touch TRAINING_FAILED
+  exit 1
+fi
+
+STORAGE_ACCOUNT_NAME = $(echo "$AZURE_ARTIFACT_STORAGE_CONNECTION_STRING" | grep -oP 'AccountName=\K[^;]+')
+ARTIFACT_ROOT = "wasbs://$AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER@$STORAGE_ACCOUNT_NAME.blob.core.windows.net/"
+
+echo "Using artifact root: $ARTIFACT_ROOT"
+
 echo "=== SYNC REPO ==="
 git fetch origin
 git reset --hard origin/main
@@ -35,7 +58,7 @@ pkill -f "mlflow server" || true
 nohup $PYTHON_EXEC -m mlflow server \
   --backend-store-uri sqlite:///mlflow.db \
   --registry-store-uri sqlite:///mlflow.db \
-  --default-artifact-root wasbs://mlflow-artifacts@phishguardartifacts.blob.core.windows.net/ \
+  --default-artifact-root "$ARTIFACT_ROOT" \
   --host 0.0.0.0 \
   --port 5000 \
   > mlflow.log 2>&1 &

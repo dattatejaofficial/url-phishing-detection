@@ -11,10 +11,22 @@ import mlflow
 from mlflow.client import MlflowClient
 from mlflow.pyfunc.model import PythonModel
 from mlflow.artifacts import download_artifacts
+
+from azure.storage.blob import BlobServiceClient
+
+from datetime import datetime, timezone
 from joblib import load
 import pandas as pd
 import numpy as np
 import json
+
+AZURE_ARTIFACT_STORAGE_CONNECTION_STRING = os.getenv('AZURE_ARTIFACT_STORAGE_CONNECTION_STRING')
+if not AZURE_ARTIFACT_STORAGE_CONNECTION_STRING:
+    raise Exception('AZURE_ARTIFACT_STORAGE_CONNECTION_STRING is not set in environment')
+
+AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER = os.getenv('AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER')
+if not AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER:
+    raise Exception('AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER is not set in environment')
 
 class ModelWrapper(PythonModel):
     def __init__(self):
@@ -63,6 +75,26 @@ class ModelFinalizer:
 
         return {}
     
+    def _get_artifact_uri(self, run_id: str) -> str:
+        run = self.client.get_run(run_id)
+        return f'{run.info.artifact_uri}/final_model'
+
+    def _update_production_config(self, model_uri: str, run_id: str):        
+        blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
+        container_client = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
+
+        data = {
+            'model_uri' : model_uri,
+            'run_id' : run_id,
+            'updated_at' : datetime.now(timezone.utc).isoformat()
+        }
+
+        blob_client = container_client.get_blob_client(self.model_finalizer_config.metadata_path)
+        blob_client.upload_blob(
+            json.dumps(data),
+            overwrite = True
+        )
+    
     def _is_new_model_better(self, new_metrics : dict, prod_metrics : dict, recall_drop : float = 0.02) -> bool:
         new_recall = new_metrics.get('recall', 0)
         prod_recall = prod_metrics.get('recall', 0)
@@ -84,7 +116,6 @@ class ModelFinalizer:
 
             model_name = self.model_evaluation_artifact.registered_model_name
             new_threshold = self.model_evaluation_artifact.threshold
-            print(new_threshold)
 
             with open(self.model_evaluation_artifact.evaluation_report_path,'r') as file:
                 new_metrics = json.load(file)
@@ -113,7 +144,6 @@ class ModelFinalizer:
                         mlflow.log_metric(k,v)
 
                 local_model_dir = download_artifacts(self.model_evaluation_artifact.model_uri)
-
                 model_file_path = os.path.join(local_model_dir,'model.pkl')
 
                 mlflow.pyfunc.log_model(
@@ -145,6 +175,7 @@ class ModelFinalizer:
                     alias='production',
                     version=new_version
                 )
+                winning_run_id = new_run_id
                 final_stage='production'
             
             else:
@@ -154,16 +185,22 @@ class ModelFinalizer:
                     key='lifecycle',
                     value='archived'
                 )
+                winning_run_id = prod_model.run_id
                 final_stage='archived'
             
             logging.info(f'Model Finalization completed. Final Stage: {final_stage}')
+
+            winning_model_uri = self._get_artifact_uri(winning_run_id)
+            self._update_production_config(model_uri=winning_model_uri, run_id=winning_run_id)
+
+            logging.info(f'Final model selected: {winning_model_uri}')
 
             model_finalizer_artifact = ModelFinalizerArtifact(
                 model_name=model_name,
                 model_version=new_version,
                 stage=final_stage,
                 threshold=new_threshold,
-                run_id=new_run_id,
+                run_id=winning_run_id,
                 report_path = report_path
             )
             return model_finalizer_artifact

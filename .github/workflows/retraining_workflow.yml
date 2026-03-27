@@ -39,9 +39,9 @@ jobs:
 
               sudo -u \$VM_USERNAME bash -c '
                 export MONGODB_URI=\"${{ secrets.MONGODB_URI }}\"
-                export AZURE_STORAGE_CONNECTION_STRING=\"${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}\"
-                export AZURE_BLOB_ARTIFACT_CONTAINER=\"${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}\"
                 export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING=\"${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}\"
+                export AZURE_BLOB_ARTIFACT_CONTAINER=\"${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}\"
+                export AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER=\"${{ secrets.AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER }}\"
                 export MLFLOW_TRACKING_URI=\"http://127.0.0.1:5000\"
 
                 cd /home/\$USER/url-phishing-detection
