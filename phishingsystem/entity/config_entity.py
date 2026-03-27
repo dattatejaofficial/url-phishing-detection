@@ -155,15 +155,6 @@ class ModelEvaluationConfig:
 class ModelFinalizerConfig:
     def __init__(self, training_pipeline_config : TrainingPipelineConfig):
         self.metadata_path : str = training_pipeline.METADATA_PATH
-        self.model_finalizer_dir_name : str = os.path.join(
-            training_pipeline_config.artifact_dir,
-            training_pipeline.MODEL_FINALIZER_DIR_NAME
-        )
-        self.model_finalizer_report_path : str = os.path.join(
-            self.model_finalizer_dir_name,
-            training_pipeline.MODEL_FINALIZER_THRESHOLD_DIR_NAME,
-            training_pipeline.FINAL_THRESHOLD_PATH
-        )
 
 class ArtifactPublisherConfig:
     def __init__(self, training_pipeline_config : TrainingPipelineConfig):

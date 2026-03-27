@@ -38,26 +38,19 @@ class DataTransformationArtifact:
 @dataclass
 class ModelTrainerArtifact:
     model_uri : str
-    registered_model_name : str
-    model_version : str
-    model_tracking_uri : str
+    run_id : str
     test_data_probs_path : str
     test_data_path : str
 
 @dataclass
 class ModelEvaluationArtifact:
-    model_uri : str
-    registered_model_name : str
-    model_version : str
-    model_tracking_uri : str
+    run_id : str
     evaluation_report_path : str
     threshold : float
 
 @dataclass
 class ModelFinalizerArtifact:
-    model_name : str
-    model_version : str
+    model_uri : str
+    run_id : str
     stage : str
     threshold : float
-    run_id : str
-    report_path : str

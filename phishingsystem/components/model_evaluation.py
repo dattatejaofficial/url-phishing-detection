@@ -10,6 +10,8 @@ from phishingsystem.entity.artifact_entity import ModelTrainerArtifact, ModelEva
 
 from phishingsystem.utils.main_utils import load_numpy_array
 
+import mlflow
+from mlflow import MlflowClient
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, precision_recall_curve
 
@@ -73,12 +75,17 @@ class ModelEvaluation:
             with open(report_path,'w') as file:
                 json.dump(best_metrics, file, indent=4)
             logging.info('Saved the Metrics report')
+
+            client = MlflowClient()
+            run_id = self.model_trainer_artifact.run_id
+            for k,v in best_metrics.items():
+                if k != 'threshold':
+                    client.log_metric(run_id,f'eval_{k}', v)
+            
+            client.log_param(run_id, 'selected_threshold', best_metrics['threshold'])
             
             model_evaluation_artifact = ModelEvaluationArtifact(
-                model_uri = self.model_trainer_artifact.model_uri,
-                registered_model_name = self.model_trainer_artifact.registered_model_name,
-                model_version = self.model_trainer_artifact.model_version,
-                model_tracking_uri = self.model_trainer_artifact.model_tracking_uri,
+                run_id = self.model_trainer_artifact.run_id,
                 evaluation_report_path = report_path,
                 threshold = best_metrics['threshold']
             )

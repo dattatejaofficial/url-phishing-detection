@@ -42,6 +42,18 @@ class ModelTrainer:
             X_train, y_train = train_data[:,:-1], train_data[:,-1].astype(int)
             X_test, y_test = test_data[:,:-1], test_data[:,-1].astype(int)
 
+            # Handling imbalanced classes
+            n_pos = (y_train == 1).sum()
+            n_neg = (y_train == 0).sum()
+
+            scale_pos_weight = 1.0
+            if n_neg > n_pos:
+                ratio = n_neg / n_pos
+                if ratio > self.model_trainer_config.imbalance_ratio_threshold:
+                    scale_pos_weight = min(ratio, self.model_trainer_config.max_class_weight)
+            
+            weights = (load_numpy_array(self.data_transformation_artifact.train_data_weights_path) if self.data_transformation_artifact.train_data_weights_path else None)
+
             search_space = {
                 "max_depth" : hp.quniform("max_depth",3,10,1),
                 "learning_rate" : hp.loguniform("learning_rate",np.log(0.01),np.log(0.2)),
@@ -54,20 +66,9 @@ class ModelTrainer:
                 "reg_lambda" : hp.loguniform("reg_lambda",np.log(1),np.log(10))
             }
 
-            # Handling imbalanced classes
-            n_pos = (y_train == 1).sum()
-            n_neg = (y_train == 0).sum()
-
-            scale_pos_weight = 1.0
-
-            if n_neg > n_pos:
-                ratio = n_neg / n_pos
-                if ratio > self.model_trainer_config.imbalance_ratio_threshold:
-                    scale_pos_weight = min(ratio, self.model_trainer_config.max_class_weight)
-
-            weights = load_numpy_array(self.data_transformation_artifact.train_data_weights_path) if self.data_transformation_artifact.train_data_weights_path is not None else None
-
             def objective(params : dict):
+                params = params.copy()
+
                 params['scale_pos_weight'] = scale_pos_weight
                 params['max_depth'] = int(params['max_depth'])
                 params['n_estimators'] = int(params['n_estimators'])
@@ -118,7 +119,9 @@ class ModelTrainer:
 
             trials = Trials()
 
-            with mlflow.start_run(run_name='hyperopt_search') as parent_run:
+            with mlflow.start_run(run_name='training') as parent_run:
+                mlflow.set_tag('stage','training')
+
                 best_params = fmin(
                     algo = tpe.suggest,
                     trials = trials,
@@ -159,7 +162,6 @@ class ModelTrainer:
                     mlflow.log_metric(f'test_{k}',v)
                 
                 np.random.seed(42)
-
                 splitter = StratifiedShuffleSplit(n_splits=1,test_size=200,random_state=42)
                 for _, idx in splitter.split(X_train, y_train):
                     X_shap = X_train[idx]
@@ -183,18 +185,16 @@ class ModelTrainer:
                 
                 signature = infer_signature(X_train, final_model.predict(X_train))
 
-                model_info = mlflow.sklearn.log_model(
+                mlflow.sklearn.log_model(
                     sk_model=final_model,
-                    name=self.model_trainer_config.artifact_name,
-                    registered_model_name=self.model_trainer_config.registered_model_name,
+                    name='raw_model',
                     signature=signature
                 )
 
-            model_version = model_info.registered_model_version
-            registered_name = self.model_trainer_config.registered_model_name
-            model_uri = f'models:/{registered_name}/{model_version}'
-            tracking_uri = mlflow.get_tracking_uri()
-            return test_probs, model_uri, model_version, tracking_uri, registered_name
+            run_id = parent_run.info.run_id
+            model_uri = f"runs:/{run_id}/raw_model"
+
+            return test_probs, model_uri, run_id
         
         except Exception as e:
             raise PhishingSystemException(e,sys)
@@ -205,7 +205,7 @@ class ModelTrainer:
             train_arr = load_numpy_array(self.data_transformation_artifact.train_data_path)
             test_arr = load_numpy_array(self.data_transformation_artifact.test_data_path)
 
-            test_probs, model_uri, model_version, tracking_uri, reg_model_name = self._train_model(train_arr, test_arr)
+            test_probs, model_uri, run_id = self._train_model(train_arr, test_arr)
             logging.info('Loaded MlFlow Artifacts')
 
             test_prob_arr_path = self.model_trainer_config.data_prob_path
@@ -216,9 +216,7 @@ class ModelTrainer:
 
             model_trainer_artifact = ModelTrainerArtifact(
                 model_uri = model_uri,
-                registered_model_name = reg_model_name,
-                model_version = model_version,
-                model_tracking_uri = tracking_uri,
+                run_id = run_id,
                 test_data_probs_path = test_prob_arr_path,
                 test_data_path = self.data_transformation_artifact.test_data_path
             )

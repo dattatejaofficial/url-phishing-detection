@@ -7,6 +7,7 @@ load_dotenv()
 
 from phishingsystem.exception.exception import PhishingSystemException
 
+import threading
 import asyncio
 from contextlib import asynccontextmanager
 import uvicorn
@@ -29,15 +30,11 @@ from azure.storage.blob import BlobServiceClient
 
 from phishingsystem.utils.url_preparation.url_cleaner import URLCleaner
 from phishingsystem.utils.url_preparation.url_feature_extraction import URLFeaturesExtraction
-from phishingsystem.constants.training_pipeline import MONOGDB_DATABASE_NAME, MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME, LOCAL_MODEL_PATH, METADATA_PATH
+from phishingsystem.constants.training_pipeline import MONOGDB_DATABASE_NAME, MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME, METADATA_PATH
 
 MONGODB_URI = os.getenv('MONGODB_URI')
 if not MONGODB_URI:
     raise Exception("MONGODB_URI is not set in environement")
-
-MLFLOW_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI')
-if not MLFLOW_TRACKING_URI:
-    raise Exception("MLFLOW_TRACKING_URI is not set in environment")
 
 AZURE_ARTIFACT_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 if not AZURE_ARTIFACT_STORAGE_CONNECTION_STRING:
@@ -47,45 +44,38 @@ AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER = os.getenv('AZURE_BLOB_MLFLOW_ARTIFACT_CON
 if not AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER:
     raise Exception('AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER is not set in environment')
 
-BASE_MODEL_DIR = os.path.join(tempfile.gettempdir(), 'phishing_model')
 CURRENT_MODEL_URI = None
-
 model = None
+model_lock = threading.Lock()
+
 mongo_client = None
 db = None
 collection = None
 
-def prepare_model_dir():
-    if os.path.exists(BASE_MODEL_DIR):
-        shutil.rmtree(BASE_MODEL_DIR)
-    
-    os.makedirs(BASE_MODEL_DIR, exist_ok=True)
+def fetch_model_uri_from_blob():
+    try:
+        blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
+        container = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
+        blob = container.get_blob_client(METADATA_PATH)
+        raw = blob.download_blob().readall()
+        data = json.loads(raw)
+
+        return data['model_uri']
+    except Exception as e:
+        raise PhishingSystemException(e,sys)
 
 def load_model_from_blob():
     global CURRENT_MODEL_URI
 
-    blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
-    container_client = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
+    model_uri = fetch_model_uri_from_blob()
 
-    blob_client = container_client.get_blob_client(METADATA_PATH)
-
-    data = json.loads(blob_client.download_blob().readall())
-    model_uri = data['model_uri']
-
-    if CURRENT_MODEL_URI == model_uri and os.path.exists(LOCAL_MODEL_PATH):
+    if CURRENT_MODEL_URI == model_uri:
         return None
     
-    prepare_model_dir()
-    
-    mlflow.artifacts.download_artifacts(
-        artifact_uri=model_uri,
-        dst_path=LOCAL_MODEL_PATH
-    )
-
-    model = mlflow.pyfunc.load_model(LOCAL_MODEL_PATH)
+    loaded_model = mlflow.pyfunc.load_model(model_uri)
 
     CURRENT_MODEL_URI = model_uri
-    return model
+    return loaded_model
 
 async def model_reloader():
     global model
@@ -93,10 +83,13 @@ async def model_reloader():
     while True:
         try:
             new_model = load_model_from_blob()
-            if new_model:
-                model = new_model
+            
+            if new_model is not None:
+                with model_lock:
+                    model = new_model
+    
         except Exception as e:
-            raise PhishingSystemException(e,sys)
+            print(f'Model Reload Error {str(e)}')
         
         await asyncio.sleep(60)
 
@@ -108,10 +101,14 @@ async def lifespan(app: FastAPI):
     db = mongo_client[MONOGDB_DATABASE_NAME]
     collection = db[MONOGODB_FEEDBACK_URL_FEATURES_COLLECTION_NAME]
 
-    model = load_model_from_blob()
-    if model is None:
-        raise PhishingSystemException('Failed to load model')
+    initial_model = load_model_from_blob()
+
+    if initial_model is None:
+        raise PhishingSystemException('Failed to load model', sys)
     
+    with model_lock:
+        model = initial_model
+
     asyncio.create_task(model_reloader())
 
     yield

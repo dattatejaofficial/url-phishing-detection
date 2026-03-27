@@ -39,6 +39,7 @@ jobs:
 
               sudo -u \$VM_USERNAME bash -c '
                 export MONGODB_URI=\"${{ secrets.MONGODB_URI }}\"
+                export AZURE_STORAGE_CONNECTION_STRING=\"${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}\"
                 export AZURE_ARTIFACT_STORAGE_CONNECTION_STRING=\"${{ secrets.AZURE_ARTIFACT_STORAGE_CONNECTION_STRING }}\"
                 export AZURE_BLOB_ARTIFACT_CONTAINER=\"${{ secrets.AZURE_BLOB_ARTIFACT_CONTAINER }}\"
                 export AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER=\"${{ secrets.AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER }}\"

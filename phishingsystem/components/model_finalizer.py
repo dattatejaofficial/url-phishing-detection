@@ -10,12 +10,10 @@ from phishingsystem.entity.artifact_entity import ModelEvaluationArtifact, Model
 import mlflow
 from mlflow.client import MlflowClient
 from mlflow.pyfunc.model import PythonModel
-from mlflow.artifacts import download_artifacts
 
 from azure.storage.blob import BlobServiceClient
 
 from datetime import datetime, timezone
-from joblib import load
 import pandas as pd
 import numpy as np
 import json
@@ -29,16 +27,10 @@ if not AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER:
     raise Exception('AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER is not set in environment')
 
 class ModelWrapper(PythonModel):
-    def __init__(self):
-        self.model = None
-        self.threshold = None
-    
-    def load_context(self, context):
-        self.model = load(context.artifacts['model_path'])
-
-        with open(context.artifacts['threshold_path'],'r') as file:
-            self.threshold = json.load(file)['threshold']
-    
+    def __init__(self, model, threshold):
+        self.model = model
+        self.threshold = threshold
+        
     def predict(self, context, model_input : pd.DataFrame) -> dict[str,np.ndarray]:
         proba = self.model.predict_proba(model_input)[:,1]
         preds = (proba >= self.threshold).astype(int)
@@ -52,156 +44,125 @@ class ModelFinalizer:
     def __init__(self, model_evaluation_artifact : ModelEvaluationArtifact, model_finalizer_config : ModelFinalizerConfig):
         self.model_evaluation_artifact = model_evaluation_artifact
         self.model_finalizer_config = model_finalizer_config
-        self.client = MlflowClient(tracking_uri = self.model_evaluation_artifact.model_tracking_uri)
     
-    def _get_production_model(self, model_name : str):
+    def _load_production_metadata(self):
         try:
-            return self.client.get_model_version_by_alias(
-                name=model_name,
-                alias='production'
-            )
-        except Exception:
-            return None
+            blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
+            container_client = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
+            blob_client = container_client.get_blob_client(self.model_finalizer_config.metadata_path)
+
+            if not blob_client.exists():
+                return None
+
+            data = blob_client.download_blob().readall().decode('utf-8')
+            return json.loads(data)
+        
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
     
-    def _load_metrics_from_run(self, run_id : str) -> dict:
-        artifacts = self.client.list_artifacts(run_id)
+    def _get_metrics(self, run_id):
+        client = MlflowClient()
+        run = client.get_run(run_id)
 
-        for art in artifacts:
-            if 'evaluation' in art.path:
-                local_path = self.client.download_artifacts(run_id, art.path)
-
-                with open(local_path,'r') as f:
-                    return json.load(f)
-
-        return {}
+        return run.data.metrics
     
-    def _get_artifact_uri(self, run_id: str) -> str:
-        run = self.client.get_run(run_id)
-        return f'{run.info.artifact_uri}/final_model'
+    def _is_new_model_better(self, new_metrics, prod_metrics, recall_drop = 0.02):
+        new_recall = new_metrics.get('recall',0)
+        prod_recall = prod_metrics.get('eval_recall',0)
 
-    def _update_production_config(self, model_uri: str, run_id: str):        
-        blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
-        container_client = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
-
-        data = {
-            'model_uri' : model_uri,
-            'run_id' : run_id,
-            'updated_at' : datetime.now(timezone.utc).isoformat()
-        }
-
-        blob_client = container_client.get_blob_client(self.model_finalizer_config.metadata_path)
-        blob_client.upload_blob(
-            json.dumps(data),
-            overwrite = True
-        )
-    
-    def _is_new_model_better(self, new_metrics : dict, prod_metrics : dict, recall_drop : float = 0.02) -> bool:
-        new_recall = new_metrics.get('recall', 0)
-        prod_recall = prod_metrics.get('recall', 0)
-
-        new_f1 = new_metrics.get('f1_score', 0)
-        prod_f1 = new_metrics.get('f1_score', 0)
+        new_f1 = new_metrics.get('f1_score',0)
+        prod_f1 = prod_metrics.get('eval_f1_score',0)
 
         if new_recall < (prod_recall - recall_drop):
             return False
-        
+
         if new_f1 < prod_f1:
             return False
         
         return True
+        
+    def _update_production_config(self, model_uri, run_id):
+        try:
+            blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
+            container_client = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
+
+            if not container_client.exists():
+                raise Exception('Container does not exists')
+
+            data = {
+                'model_uri' : model_uri,
+                'run_id' : run_id,
+                'updated_at' : datetime.now(timezone.utc).isoformat()
+            }
+
+            blob_client = container_client.get_blob_client(self.model_finalizer_config.metadata_path)
+            blob_client.upload_blob(json.dumps(data), overwrite=True)
+        
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
     
     def initiate_model_finalization(self) -> ModelFinalizerArtifact:
         try:
             logging.info('Initiating Model Finalization')
 
-            model_name = self.model_evaluation_artifact.registered_model_name
-            new_threshold = self.model_evaluation_artifact.threshold
-
             with open(self.model_evaluation_artifact.evaluation_report_path,'r') as file:
                 new_metrics = json.load(file)
-            
-            prod_model = self._get_production_model(model_name)
 
-            if prod_model is None:
-                decision = 'PROMOTE_FIRST_TIME'
+            new_threshold = self.model_evaluation_artifact.threshold
+            trainer_run_id = self.model_evaluation_artifact.run_id
+            raw_model_uri = f'runs:/{trainer_run_id}/raw_model'
+            
+            prod_metadata = self._load_production_metadata()
+
+            if prod_metadata is None:
+                promote = True
                 logging.info('No production model found. First-time production')
             else:
-                prod_metrics = self._load_metrics_from_run(prod_model.run_id)
-                decision = 'PROMOTE' if self._is_new_model_better(new_metrics,prod_metrics) else 'REJECT'
+                prod_metrics = self._get_metrics(prod_metadata['run_id'])
+                promote = self._is_new_model_better(new_metrics, prod_metrics)
             
-            with mlflow.start_run(run_name='model_finalization') as run:
+            if not promote:
+                logging.info('New model rejected. Keeping current production model.')
+
+                return ModelFinalizerArtifact(
+                    model_uri=prod_metadata['model_uri'],
+                    run_id=prod_metadata['run_id'],
+                    stage='rejected',
+                    threshold=self.model_evaluation_artifact.threshold
+                )
+            
+            mlflow.end_run()
+
+            with mlflow.start_run(run_name='final_model') as run:
+                
+                mlflow.set_tag('stage','production')
+                mlflow.set_tag('pipeline_step','finalizer')
+                mlflow.set_tag('trainer_run_id',trainer_run_id)
+
                 mlflow.log_param('threshold',new_threshold)
 
-                report_path = self.model_finalizer_config.model_finalizer_report_path
-                report_dir = os.path.dirname(report_path)
-                os.makedirs(report_dir,exist_ok=True)
-
-                with open(report_path,'w') as file:
-                    json.dump({'threshold' : new_threshold}, file, indent = 4)
-
                 for k,v in new_metrics.items():
-                    if k != 'threshold':
-                        mlflow.log_metric(k,v)
-
-                local_model_dir = download_artifacts(self.model_evaluation_artifact.model_uri)
-                model_file_path = os.path.join(local_model_dir,'model.pkl')
+                    mlflow.log_metric(f'final_{k}', v)
+                
+                base_model = mlflow.sklearn.load_model(raw_model_uri)
+                wrapped_model = ModelWrapper(base_model, new_threshold)
 
                 mlflow.pyfunc.log_model(
                     name='final_model',
-                    python_model=ModelWrapper(),
-                    artifacts={
-                        'model_path' : model_file_path,
-                        'threshold_path' : report_path
-                        },
-                    registered_model_name=model_name,
-                    model_config={'threshold' : new_threshold}
+                    python_model=wrapped_model,
                 )
-                new_run_id = run.info.run_id
-            
-            versions = self.client.search_model_versions(f"name='{model_name}'")
-            new_version = max(versions, key=lambda v: int(v.version)).version
 
-            if decision in ['PROMOTE_FIRST_TIME','PROMOTE']:
-                if prod_model is not None:
-                    self.client.set_model_version_tag(
-                        name=model_name,
-                        version=prod_model.version,
-                        key='lifecycle',
-                        value='archived'
-                    )
+                final_uri = f'runs:/{run.info.run_id}/final_model'
 
-                self.client.set_registered_model_alias(
-                    name=model_name,
-                    alias='production',
-                    version=new_version
-                )
-                winning_run_id = new_run_id
-                final_stage='production'
-            
-            else:
-                self.client.set_model_version_tag(
-                    name=model_name,
-                    version=new_version,
-                    key='lifecycle',
-                    value='archived'
-                )
-                winning_run_id = prod_model.run_id
-                final_stage='archived'
-            
-            logging.info(f'Model Finalization completed. Final Stage: {final_stage}')
+                self._update_production_config(model_uri=final_uri,run_id=run.info.run_id)
 
-            winning_model_uri = self._get_artifact_uri(winning_run_id)
-            self._update_production_config(model_uri=winning_model_uri, run_id=winning_run_id)
-
-            logging.info(f'Final model selected: {winning_model_uri}')
+            logging.info(f"Final decision: {'PROMOTED' if promote else 'REJECTED'}")
 
             model_finalizer_artifact = ModelFinalizerArtifact(
-                model_name=model_name,
-                model_version=new_version,
-                stage=final_stage,
-                threshold=new_threshold,
-                run_id=winning_run_id,
-                report_path = report_path
+                model_uri = final_uri,
+                run_id = run.info.run_id,
+                stage = 'production',
+                threshold = new_threshold
             )
             return model_finalizer_artifact
 
