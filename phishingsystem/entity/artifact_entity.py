@@ -50,7 +50,6 @@ class ModelEvaluationArtifact:
 
 @dataclass
 class ModelFinalizerArtifact:
-    model_uri : str
+    model_path : str
     run_id : str
-    stage : str
     threshold : float

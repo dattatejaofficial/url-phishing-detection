@@ -80,7 +80,7 @@ class ModelEvaluation:
             run_id = self.model_trainer_artifact.run_id
             for k,v in best_metrics.items():
                 if k != 'threshold':
-                    client.log_metric(run_id,f'eval_{k}', v)
+                    client.log_metric(run_id, k, v)
             
             client.log_param(run_id, 'selected_threshold', best_metrics['threshold'])
             

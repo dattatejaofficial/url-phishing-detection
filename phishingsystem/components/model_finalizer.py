@@ -35,15 +35,16 @@ class ModelWrapper(PythonModel):
         proba = self.model.predict_proba(model_input)[:,1]
         preds = (proba >= self.threshold).astype(int)
 
-        return {
+        return pd.DataFrame({
             'probability' : proba,
             'prediction' : preds
-        }
+        })
 
 class ModelFinalizer:
     def __init__(self, model_evaluation_artifact : ModelEvaluationArtifact, model_finalizer_config : ModelFinalizerConfig):
         self.model_evaluation_artifact = model_evaluation_artifact
         self.model_finalizer_config = model_finalizer_config
+        self.client = MlflowClient()
     
     def _load_production_metadata(self):
         try:
@@ -61,17 +62,16 @@ class ModelFinalizer:
             raise PhishingSystemException(e,sys)
     
     def _get_metrics(self, run_id):
-        client = MlflowClient()
-        run = client.get_run(run_id)
+        run = self.client.get_run(run_id)
 
         return run.data.metrics
     
     def _is_new_model_better(self, new_metrics, prod_metrics, recall_drop = 0.02):
         new_recall = new_metrics.get('recall',0)
-        prod_recall = prod_metrics.get('eval_recall',0)
+        prod_recall = prod_metrics.get('recall',0)
 
         new_f1 = new_metrics.get('f1_score',0)
-        prod_f1 = prod_metrics.get('eval_f1_score',0)
+        prod_f1 = prod_metrics.get('f1_score',0)
 
         if new_recall < (prod_recall - recall_drop):
             return False
@@ -80,8 +80,20 @@ class ModelFinalizer:
             return False
         
         return True
+    
+    def _get_model_path(self):
+        try:
+            mv = self.client.get_model_version_by_alias(name='phishingModel',alias='production')
+            run = self.client.get_run(run_id=mv.run_id)
+            artifact_uri = run.info.artifact_uri
+            base_uri = artifact_uri.rsplit('/',2)[0]
+
+            return base_uri.split('@')[-1].split('/')[1] + '/' + mv.source.replace(':','') + '/artifacts' + '/python_model.pkl'
         
-    def _update_production_config(self, model_uri, run_id):
+        except Exception as e:
+            raise PhishingSystemException(e,sys)
+        
+    def _update_production_config(self, model_path, run_id, version):
         try:
             blob_service = BlobServiceClient.from_connection_string(AZURE_ARTIFACT_STORAGE_CONNECTION_STRING)
             container_client = blob_service.get_container_client(AZURE_BLOB_MLFLOW_ARTIFACT_CONTAINER)
@@ -90,8 +102,9 @@ class ModelFinalizer:
                 raise Exception('Container does not exists')
 
             data = {
-                'model_uri' : model_uri,
                 'run_id' : run_id,
+                'model_path' : model_path,
+                'version' : version,
                 'updated_at' : datetime.now(timezone.utc).isoformat()
             }
 
@@ -125,43 +138,53 @@ class ModelFinalizer:
                 logging.info('New model rejected. Keeping current production model.')
 
                 return ModelFinalizerArtifact(
-                    model_uri=prod_metadata['model_uri'],
+                    model_path=prod_metadata['model_path'],
                     run_id=prod_metadata['run_id'],
                     stage='rejected',
                     threshold=self.model_evaluation_artifact.threshold
                 )
             
-            mlflow.end_run()
-
-            with mlflow.start_run(run_name='final_model') as run:
+            with mlflow.start_run(run_name='PhishingModelRegister') as run:
                 
-                mlflow.set_tag('stage','production')
-                mlflow.set_tag('pipeline_step','finalizer')
                 mlflow.set_tag('trainer_run_id',trainer_run_id)
 
                 mlflow.log_param('threshold',new_threshold)
 
                 for k,v in new_metrics.items():
-                    mlflow.log_metric(f'final_{k}', v)
+                    mlflow.log_metric(k, v)
                 
                 base_model = mlflow.sklearn.load_model(raw_model_uri)
                 wrapped_model = ModelWrapper(base_model, new_threshold)
 
                 mlflow.pyfunc.log_model(
-                    name='final_model',
-                    python_model=wrapped_model,
+                    name='wrapped_model',
+                    python_model=wrapped_model
                 )
 
-                final_uri = f'runs:/{run.info.run_id}/final_model'
+                wrapped_model_run_id = run.info.run_id
+                wrapped_model_uri = f'runs:/{wrapped_model_run_id}/wrapped_model'
 
-                self._update_production_config(model_uri=final_uri,run_id=run.info.run_id)
+                mv = mlflow.register_model(model_uri=wrapped_model_uri, name='phishingModel')
+                new_version = mv.version
+
+                if prod_metadata is None:
+                    old_version = None
+                else:
+                    old_version = prod_metadata['version']
+
+                self.client.set_registered_model_alias(name='phishingModel',alias='production',version=new_version)
+
+                if old_version is not None:
+                    self.client.set_registered_model_alias(name='phishingModel',alias='archived',version=old_version)
+
+                model_path = self._get_model_path()
+                self._update_production_config(model_path=model_path, run_id=wrapped_model_run_id, version=new_version)
 
             logging.info(f"Final decision: {'PROMOTED' if promote else 'REJECTED'}")
 
             model_finalizer_artifact = ModelFinalizerArtifact(
-                model_uri = final_uri,
+                model_path = model_path,
                 run_id = run.info.run_id,
-                stage = 'production',
                 threshold = new_threshold
             )
             return model_finalizer_artifact

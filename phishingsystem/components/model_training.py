@@ -186,9 +186,9 @@ class ModelTrainer:
                 signature = infer_signature(X_train, final_model.predict(X_train))
 
                 mlflow.sklearn.log_model(
-                    sk_model=final_model,
-                    name='raw_model',
-                    signature=signature
+                    sk_model = final_model,
+                    name = 'raw_model',
+                    signature = signature
                 )
 
             run_id = parent_run.info.run_id
