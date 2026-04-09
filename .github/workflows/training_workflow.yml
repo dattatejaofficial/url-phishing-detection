@@ -1,10 +1,10 @@
-name: Retraining Pipeline
+name: Training Pipeline
 
 on:
   workflow_dispatch:
 
 jobs:
-  retrain-model:
+  train-model:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +23,7 @@ jobs:
       - name: Wait for VM
         run: sleep 60
 
-      - name: Run Retraining (DEBUG MODE)
+      - name: Run Training (SYNC)
         run: |
           az vm run-command invoke \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
@@ -33,10 +33,7 @@ jobs:
               VM_USERNAME='${{ secrets.VM_USERNAME }}'
 
               sudo -u \$VM_USERNAME bash -c '
-                set -euo pipefail
-
-                echo \"===== ENV CHECK =====\"
-                echo \"User: \$(whoami)\"
+                set -ex
 
                 export VM_USERNAME=\"${{ secrets.VM_USERNAME }}\"
                 export MONGODB_URI=\"${{ secrets.MONGODB_URI }}\"
@@ -48,24 +45,25 @@ jobs:
 
                 cd /home/\$VM_USERNAME/url-phishing-detection
 
-                echo \"===== FILE CHECK =====\"
+                echo \"=== VERIFY FILES ===\"
                 ls -la
                 ls -la scripts || true
 
-                echo \"===== SYNC REPO =====\"
+                echo \"=== SYNC REPO ===\"
                 git fetch origin
                 git reset --hard origin/main
                 git clean -fd
 
-                if [ ! -f scripts/retrain.sh ]; then
-                  echo \"ERROR: retrain.sh not found\"
+                if [ ! -f scripts/train.sh ]; then
+                  echo \"ERROR: train.sh not found\"
                   exit 1
                 fi
 
-                echo \"===== START RETRAIN =====\"
-                bash scripts/retrain.sh
+                echo \"START TIME: \$(date)\"
 
-                echo \"===== DONE =====\"
+                bash scripts/train.sh
+
+                echo \"END TIME: \$(date)\"
               '
             "
 
