@@ -101,8 +101,8 @@ class FeedbackService:
 
         features.update({
             'label' : user_label,
-            'created_at' : datetime.now(timezone.utc),
-            'model_prediction' : model_prediction,
+            'timestamp' : datetime.now(timezone.utc),
+            'prediction' : model_prediction,
             'model_confidence' : model_confidence
         })
 

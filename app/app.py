@@ -4,8 +4,8 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Literal
+from pydantic import BaseModel, Field
+from typing import Annotated
 
 import pandas as pd
 
@@ -14,10 +14,12 @@ from app.services import ModelService, FeatureService, FeedbackService
 class PredictionRequest(BaseModel):
     url : str
 
+BinaryInt = Annotated[int, Field(ge=0, le=1, strict=True)]
+
 class FeedbackRequest(BaseModel):
     url : str
-    model_prediction : Literal['phishing','legitimate']
-    user_label : Literal['phishing','legitimate']
+    prediction : BinaryInt
+    user_label : BinaryInt
     confidence : float | None
 
 def create_app():
@@ -62,7 +64,7 @@ def create_app():
     @app.post('/feedback')
     async def feedback(req: FeedbackRequest):
         try:
-            feedback_service.store(req.url, req.user_label, req.model_prediction, req.confidence)
+            feedback_service.store(req.url, req.user_label, req.prediction, req.confidence)
             return {'status':'stored'}
         except Exception as e:
             raise HTTPException(500, str(e))
