@@ -34,23 +34,6 @@ def compute_drift_report(reference_df : pd.DataFrame, current_df : pd.DataFrame,
     except Exception as e:
         raise Exception(e)
 
-def compute_performance_metrics(df: pd.DataFrame):
-    tp = ((df['y_true'] == 1) & (df['y_pred'] == 1)).sum()
-    fp = ((df['y_true'] == 0) & (df['y_pred'] == 1)).sum()
-    tn = ((df['y_true'] == 0) & (df['y_pred'] == 0)).sum()
-    fn = ((df['y_true'] == 1) & (df['y_pred'] == 0)).sum()
-
-    accuracy = (tp + tn) / (tp + tn + fp + fn)
-    precision = tp / max(tp + fp,1)
-    recall = tp / max(tp + fn, 1)
-
-    return {
-        "accuracy" : accuracy,
-        "precision" : precision,
-        "recall" : recall,
-        "sample_count" : len(df)
-    }
-
 def compute_data_volume(new_rows, last_training_rows):
     try:
         return {

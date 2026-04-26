@@ -25,12 +25,6 @@ class MonitoringConfig:
             monitoring_constants.DRIFT_TASK_REPORT_PATH
         )
 
-        self.performance_report_path = os.path.join(
-            self.timestamp,
-            monitoring_constants.PERFORMANCE_TASK_DIR,
-            monitoring_constants.PERFORMANCE_TASK_REPORT_PATH
-        )
-
         self.volume_task_report_path = os.path.join(
             self.timestamp,
             monitoring_constants.VOLUME_TASK_DIR,

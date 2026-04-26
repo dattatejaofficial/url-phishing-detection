@@ -26,13 +26,6 @@ def is_drift_significant(drift_report: dict) -> bool:
     
     return False
 
-def is_performance_degraded(performance_report: dict) -> bool:
-    if not performance_report:
-        return False
-    
-    recall = performance_report.get('performance_report',{}).get('recall',1.0)
-    return recall < RECALL_THRESHOLD
-
 def is_volume_significant(volume_report: dict) -> bool:
     if not volume_report:
         return False
@@ -42,23 +35,18 @@ def is_volume_significant(volume_report: dict) -> bool:
 
 def should_trigger_retraining(reports: dict):
     drift_flag = False
-    performance_flag = False
     volume_flag = False
 
     if ENABLE_DRIFT_TRIGGER:
         drift_flag = is_drift_significant(reports.get('drift', {}))
     
-    if ENABLE_PERFORMANCE_TRIGGER:
-        performance_flag = is_performance_degraded(reports.get('performance', {}))
-    
     if ENABLE_VOLUME_TRIGGER:
         volume_flag = is_volume_significant(reports.get('volume', {}))
 
-    decision = drift_flag or volume_flag or performance_flag
+    decision = drift_flag or volume_flag
 
     return {
         'drift trigger' : drift_flag,
-        'performance trigger' : performance_flag,
         'volume flag' : volume_flag,
         'trigger retraining' : decision,
         "computed at" : datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d-%m-%Y %H:%M:%S")

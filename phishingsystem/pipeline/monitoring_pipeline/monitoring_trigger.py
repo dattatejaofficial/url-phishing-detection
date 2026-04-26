@@ -82,14 +82,6 @@ def run_drift(features_df, reference_df):
         "computed_at" : monitoring_config.current_time.isoformat()
     }
 
-def run_performance(predictions_df):
-    metrics = compute_performance_metrics(predictions_df)
-
-    return {
-        'window' : f"{monitoring_config.no_of_days}_day_strict_interval",
-        **metrics
-    }
-
 def run_volume(features_df, reference_df):
     volume_report = compute_data_volume(len(features_df), len(reference_df))
 
@@ -107,7 +99,6 @@ def upload_to_blob(reports : dict):
 
     paths = {
         monitoring_config.drift_task_report_path : reports['drift'],
-        monitoring_config.performance_report_path : reports['performance'],
         monitoring_config.volume_task_report_path : reports['volume'],
         monitoring_config.retraining_decision_report_path : reports['trigger_retraining']
     }
@@ -120,19 +111,17 @@ def upload_to_blob(reports : dict):
         container_client.upload_blob(name=blob_name, data=buffer, overwrite=True)
 
 def run_monitoring():
-    features_df, predictions_df, reference_df = fetch_data()
+    features_df, _, reference_df = fetch_data()
 
     if features_df is None or reference_df is None:
         print('Skipping monitoring - no data')
         return None, None
     
     drift_report = run_drift(features_df, reference_df)
-    performance_report = run_performance(predictions_df)
     volume_report = run_volume(features_df, reference_df)
 
     reports = {
         "drift" : drift_report,
-        "performance" : performance_report,
         "volume" : volume_report
     }
 
